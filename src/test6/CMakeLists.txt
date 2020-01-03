@@ -72,13 +72,15 @@ ${catkin_LIBRARIES}
 # add_executable(calib_gps src/calib_gps.cpp)
 # target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(test6 src/test6_main.cpp)
-target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+# add_executable(test6 src/test6_main.cpp)
+# target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
+add_executable(tf_to_path src/tf_to_path.cpp)
+target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
 # add_subdirectory(launch)
 
-install(TARGETS test6
+install(TARGETS tf_to_path
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
