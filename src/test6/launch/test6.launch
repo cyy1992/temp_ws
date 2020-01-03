@@ -1,0 +1,6 @@
+<!-- -->
+
+<launch>
+  <node pkg="test6" type="pbstream_convertor" name="pbstream_convertor" output="screen" launch-prefix="xterm -e gdb -ex run --args">
+  </node>
+</launch>

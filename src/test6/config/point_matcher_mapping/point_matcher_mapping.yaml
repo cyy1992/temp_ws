@@ -1,0 +1,17 @@
+mapPtsOriginInterval:1
+mapPtsOriginMaxDist:30
+priorStatic:0.45
+priorDyn:0.55
+maxAngle:0.01
+eps_a:0.1
+eps_d:0.1
+alpha:0.99
+beta:0.90
+maxDyn:0.90
+useROSLogger: false
+tfRefreshPeriod: 0.02
+minOverlap: 0.2
+maxOverlapToMerge: 0.99
+minReadingPointCount: 700
+maxDistNewPoint: 0.05
+minMapPointCount: 10000000

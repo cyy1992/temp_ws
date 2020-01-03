@@ -1,0 +1,72 @@
+%YAML:1.0
+---
+camera_number: 5
+
+intrinsic_1: !!opencv-matrix
+  rows: 3
+  cols: 3
+  dt: f
+  data:[605.2751,0,367.8815,
+        0,605.8662,285.1665,
+        0,0,1]
+distortion_1: !!opencv-matrix
+  rows: 4
+  cols: 1
+  dt: f
+  data:[-0.0515,  0.0691, 0,0]
+  
+intrinsic_2: !!opencv-matrix
+  rows: 3
+  cols: 3
+  dt: f
+  data:[602.0540,  0, 367.8815,
+        0,  602.6372, 285.1665,
+        0,  0,  1]
+distortion_2: !!opencv-matrix
+  rows: 4
+  cols: 1
+  dt: f
+  data:[-0.0538,  0.0680, 0,0]
+
+intrinsic_3: !!opencv-matrix
+  rows: 3
+  cols: 3
+  dt: f
+  data:[252.6114,  0, 255.0063,
+        0,252.7636,198.3917,
+        0,  0,  1]
+distortion_3: !!opencv-matrix
+  rows: 4
+  cols: 1
+  dt: f
+  data:[-0.0538,  0.0680, 0,0]
+  
+intrinsic_4: !!opencv-matrix
+  rows: 3
+  cols: 3
+  dt: f
+  data:[251.9695,  0, 251.4842,
+        0,  252.1665, 197.6835,
+        0,  0,  1]
+distortion_4: !!opencv-matrix
+  rows: 4
+  cols: 1
+  dt: f
+  data:[-0.2049,  0.0719, 0,  0]
+  
+intrinsic_5: !!opencv-matrix
+  rows: 3
+  cols: 3
+  dt: f
+  data:[252.2614,  0, 253.9566,
+        0,  252.5372, 199.7416,
+        0,  0,  1]
+distortion_5: !!opencv-matrix
+  rows: 4
+  cols: 1
+  dt: f
+  data:[-0.2001,  0.0688, 0,  0]
+
+
+
+

@@ -1,0 +1,9 @@
+<!-- -->
+
+<launch>
+  <node pkg="test6" type="test6" name="test6" output="screen" ns="image1">
+      <param name="sub_img_topic" value="/stereo_g1" />
+      <param name="pub_img_topic" value="$/g1" />
+
+  </node>
+</launch>

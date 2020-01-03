@@ -1,0 +1,51 @@
+<!-- -->
+<launch>
+  <param name="/use_sim_time" value="true"/>
+
+  <!--node pkg="rviz" type="rviz" name="rviz" args="-d $(find laser_localiser)/config/sliding_mapper/sliding_map_dynamic.rviz" output="screen"/ -->
+
+  <node pkg="test6" type="point_matcher_mapping" name="point_matcher_mapping" output="screen">
+
+    <!-- sliding map utilized sensors -->
+    <param name="subscribe_cloud" value="true"/>
+    <param name="subscribe_odom" value="false"/>
+    <param name="subscribe_imu" value="false"/>
+    <remap from="cloud_in" to="/scan"/>
+    <remap from="odom_in" to="/sdpx_emma_odom"/>
+    <remap from="imu_in" to="/jzhw/imu"/>
+
+    <!-- sliding map filter configure yaml -->
+    <param name="icpConfig" value="$(find test6)/config/point_matcher_mapping/icp_dynamic2.yaml" />
+    <param name="inputFiltersConfig" value="$(find test6)/config/point_matcher_mapping/input_filters2.yaml" />
+    <param name="mapPostFiltersConfig" value="$(find test6)/config/point_matcher_mapping/map_post_filters2.yaml" />
+<!--     <param name="pointMatcherMapping" value="$(find test6)/config/point_matcher_mapping/point_matcher_mapping.yaml" /> -->
+
+    <!-- sliding map tf system-->
+    <param name="odom_frame" value="odom1" />
+    <param name="base_footprint_frame" value="laser_link"/>
+
+    <!-- sliding map point will be removed if robot moves far from its observed location-->
+    <param name="mapPtsOriginInterval" value="1" />         <!--meter-->
+    <param name="mapPtsOriginMaxDist" value="30" />
+
+    <!-- sliding map dynamic probabilities update-->
+    <param name="priorStatic" value="0.45"/>  <!--0.45-->
+    <param name="priorDyn" value="0.55"/>     <!--0.55-->
+    <param name="maxAngle" value="0.01"/>  <!--0.01 :(rad)  Angle around which all points in Q are associated to a point p-->
+    <param name="eps_a" value="0.1"/>      <!--0.1  :      ratio of measurement noise propotional with range -->
+    <param name="eps_d" value="0.1"/>      <!--0.1  :(0.1m) fixed noisy part of measurement-->
+    <param name="alpha" value="0.99"/>     <!--0.99 : Probability of staying static given that the point was static-->
+    <param name="beta" value="0.90"/>      <!--0.90 : Probability of staying dynamic given that the point was dynamic-->
+    <param name="maxDyn" value="0.90"/>    <!--0.90 : Probability at which a point is considered permanently dynamic-->
+    <!-- <param name="dynThreshold" value="0.85"/>-->
+
+    <!-- sliding map various configure-->
+    <param name="useROSLogger" value="false" />
+    <param name="tfRefreshPeriod" value="0.02" />
+    <param name="minOverlap" value="0.2" />
+    <param name="maxOverlapToMerge" value="0.99" />
+    <param name="minReadingPointCount" value="700" />
+    <param name="maxDistNewPoint" value="0.02"/>  <!--0.7 -->
+    <param name="minMapPointCount" value="1000000" />    <!--10000-->
+  </node>
+</launch>

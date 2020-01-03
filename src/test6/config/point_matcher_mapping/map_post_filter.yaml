@@ -1,0 +1,17 @@
+- SurfaceNormalDataPointsFilter:
+    knn: 20
+    epsilon: 3.16
+    keepNormals: 1
+    keepDensities: 1
+#- VoxelGridDataPointsFilter:
+#    vSizeX: 0.5
+#    vSizeY: 0.5
+#    vSizeZ: 0.5
+#   useCentroid: 1
+#    averageExistingDescriptors: 1
+# Do not use subsampling filters!
+#- MaxDensityDataPointsFilter:
+#   maxDensity: 1.0  # 5.0
+- MaxPointCountDataPointsFilter:
+    maxCount: 15000  # 20000
+
