@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 <copyright holder> <email>
+ * Copyright 2020 <copyright holder> <email>
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,24 +15,18 @@
  * 
  */
 
-#ifndef PUBSUBMAPPOINTS_H
-#define PUBSUBMAPPOINTS_H
-#include "dbg.h"
+#ifndef READYAML_H
+#define READYAML_H
 #include <iostream>
-#include <ros/ros.h>
-#include <Eigen/Eigen>
-#include <sensor_msgs/PointCloud.h>
-#include <cartographer_ros_msgs/SubmapLasermark.h>
-
-class PubSubmapPoints
+#include <string>
+#include <yaml-cpp/yaml.h>
+class ReadYaml
 {
 public:
-  PubSubmapPoints(const ros::NodeHandle& n);
-private:
-  void handleSubmapLasermark(const cartographer_ros_msgs::SubmapLasermark::ConstPtr& msg);
-  ros::NodeHandle nh_;
-  ros::Subscriber sub_;
-  ros::Publisher points_pub_;
+  ReadYaml(const std::string& path);
+  ~ReadYaml();
+  
+  
 };
 
-#endif // PUBSUBMAPPOINTS_H
+#endif // READYAML_H

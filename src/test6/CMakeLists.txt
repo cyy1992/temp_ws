@@ -6,10 +6,11 @@ SET(CMAKE_BUILD_TYPE "Debug")
 SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(cartographer REQUIRED)
+# find_package(cartographer REQUIRED)
 # include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
-find_package(cartographer_ros REQUIRED)
+# find_package(cartographer_ros REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
+find_package(yaml-cpp REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   eigen_conversions
@@ -31,6 +32,7 @@ include_directories(include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
+  ${YAML_CPP_INCLUDE_DIR}
 #   ${libpointmatcher_ros_INCLUDE_DIRS}
 #   ${cartographer_INCLUDE_DIRS}
 #   ${cartographer_ros_INCLUDE_DIRS}
@@ -75,12 +77,17 @@ ${catkin_LIBRARIES}
 # add_executable(test6 src/test6_main.cpp)
 # target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
-add_executable(tf_to_path src/tf_to_path.cpp)
-target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+# add_executable(tf_to_path src/tf_to_path.cpp)
+# target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+
+# add_executable(read_json src/read_json.cpp)
+# target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(read_yaml src/read_yaml.cpp)
+target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS tf_to_path
+install(TARGETS read_yaml
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
