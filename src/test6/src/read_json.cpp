@@ -34,9 +34,11 @@ ReadJson::ReadJson(const std::string& floder_path)
   
   for(auto it: params_with_type_)
   {
-    dbg(it.first);
+    cout << it.first << endl;
     vector< double > average = getAverage(it.second);
-    dbg(average);
+    Params temp(Eigen::Vector3d(average[0],average[1],average[2]),Eigen::Vector3d(average[5],average[4],average[3]));
+    cout <<"average result: \n" <<temp.t.transpose() << " " << temp.q.coeffs().transpose() <<endl;
+    cout << temp.px <<" " << temp.py<<" " << temp.pz<<" " << temp.q.x()<<" " << temp.q.y()<<" " << temp.q.z() <<" " <<temp.q.w()<<endl;
   }
 }
 
@@ -144,26 +146,35 @@ bool ReadJson::readFromFile(const string& file_name)
 
 vector< double > ReadJson::getAverage(const vector< ReadJson::Params >& params)
 {
-  double px = 0,py = 0,pz = 0,qw = 0, qx = 0,qy = 0, qz =0;
+  double px = 0,py = 0,pz = 0;
+//   double qw = 0, qx = 0,qy = 0, qz =0;
+  double roll = 0, pitch = 0,yaw = 0;
   for(auto param:params)
   {
     px += param.px;
     py += param.py;
     
     pz += param.pz;
-    qw += param.q.w();
-    qx += param.q.x();
-    qy += param.q.y();
-    qz += param.q.z();
+    roll += param.roll;
+    pitch += param.pitch;
+    yaw += param.yaw;
+    cout << param.px <<"  \t  " << param.py<<"  \t  " << param.pz<<"  \t  " << param.roll<<"  \t  " << param.pitch<<"  \t  " << param.yaw <<endl;
+//     qw += param.q.w();
+//     qx += param.q.x();
+//     qy += param.q.y();
+//     qz += param.q.z();
   }
   vector< double > average;
   average.push_back(px/params.size());
   average.push_back(py/params.size());
   average.push_back(pz/params.size());
-  average.push_back(qw/params.size());
-  average.push_back(qx/params.size());
-  average.push_back(qy/params.size());
-  average.push_back(qz/params.size());
+  average.push_back(roll/params.size());
+  average.push_back(pitch/params.size());
+  average.push_back(yaw/params.size());
+//   average.push_back(qw/params.size());
+//   average.push_back(qx/params.size());
+//   average.push_back(qy/params.size());
+//   average.push_back(qz/params.size());
   return average;
 }
 

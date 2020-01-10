@@ -40,12 +40,28 @@ struct Params{
     Eigen::AngleAxisd yawAngle(Eigen::AngleAxisd(_eul(0),Eigen::Vector3d::UnitZ())); 
     q = yawAngle*pitchAngle * rollAngle;
     
+    Eigen::Quaterniond q_temp = q.normalized();
+    q = q_temp;
+    double aSinInput = -2 * (q_temp.x() * q_temp.z() - q_temp.w() * q_temp.y());
+    if(aSinInput > 1)
+      aSinInput = 1;
+    Eigen::Vector3d euler;
+    euler(0) = atan2(2*(q_temp.x()*q_temp.y()+q_temp.w()*q_temp.z()), 
+                      q_temp.w() * q_temp.w() + q_temp.x() * q_temp.x()- q_temp.y()*q_temp.y() - q_temp.z() *q_temp.z());
+    euler(1) = asin(aSinInput);
+    euler(2) = atan2(2*(q_temp.y() *q_temp.z()+q_temp.w()*q_temp.x()), 
+                      q_temp.w() * q_temp.w() - q_temp.x() * q_temp.x() - q_temp.y()*q_temp.y() + q_temp.z() *q_temp.z() );
+    for(int i =0 ; i < 3; i ++)
+    {
+      if(euler(i) < -2.9)
+        euler(i) = euler(i) + 2 * M_PI;
+    }
     px = t(0);
     py = t(1);
     pz = t(2);
-    roll = _eul(2);
-    pitch = _eul(1);
-    yaw = _eul(0);
+    roll = euler(2);
+    pitch = euler(1);
+    yaw = euler(0);
   };
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
