@@ -19,6 +19,8 @@
 #define STRINGOPERATOR_H
 #include <iostream>
 #include <string>
+#include <Eigen/Eigen>
+#include <opencv2/opencv.hpp>
 class StringOperator
 {
 public:

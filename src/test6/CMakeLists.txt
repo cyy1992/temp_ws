@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(test6)
 # add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 SET(CMAKE_BUILD_TYPE "Debug")
 SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 find_package(OpenCV REQUIRED)
@@ -51,6 +51,7 @@ include_directories(include
 # add_executable(test6 src/test6_main.cpp)
 # target_link_libraries(test6 ${catkin_LIBRARIES} cartographer cartographer_ros)
 link_directories(
+lib
 ${catkin_LIBRARIES}
 # ${libpointmatcher_LIBRARIES}
 # ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
@@ -84,12 +85,19 @@ ${catkin_LIBRARIES}
 # target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
-add_executable(string_operator src/string_operator.cpp)
-target_link_libraries(string_operator -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# add_executable(string_operator src/string_operator.cpp)
+# target_link_libraries(string_operator -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+
+
+add_executable(detect_block_tags src/detect_block_tags.cpp)
+target_link_libraries(detect_block_tags -ljsoncpp 
+image_projector apriltag
+${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
 
 # add_subdirectory(launch)
 
-install(TARGETS string_operator
+install(TARGETS detect_block_tags
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -97,6 +105,13 @@ install(TARGETS string_operator
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+install(FILES
+    lib/libapriltag.so
+    lib/libapriltag.so.3
+    lib/libapriltag.so.3.1.0
+    lib/libimage_projector.so
+    lib/libpointmatcher_ros.so
+    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 # install(FILES lib/libapriltag_mit.so
 #   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 # )
