@@ -101,15 +101,15 @@ ${catkin_LIBRARIES}
 # image_projector apriltag
 # ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 # 
-add_executable(kdtree src/kd_tree.cpp)
+# add_executable(kdtree src/kd_tree.cpp)
 
-# add_executable(laserscan_to_pointcloud2 src/laserscan_to_pointcloud2.cpp)
-# target_link_libraries(laserscan_to_pointcloud2  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(laserscan_to_pointcloud2 src/laserscan_to_pointcloud2.cpp)
+target_link_libraries(laserscan_to_pointcloud2  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 
 # add_subdirectory(launch)
 
-install(TARGETS kdtree
+install(TARGETS laserscan_to_pointcloud2
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
