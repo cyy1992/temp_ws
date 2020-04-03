@@ -3,7 +3,7 @@ project(test6)
 # add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
 add_compile_options(-std=c++14)
 SET(CMAKE_BUILD_TYPE "Debug")
-SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 # find_package(cartographer REQUIRED)
@@ -26,7 +26,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   std_msgs
-  
+  pcl_ros
+  pcl_conversions
 
 #   libpointmatcher_ros
 #   gps_common
@@ -43,7 +44,7 @@ include_directories(include
 #   ${libpointmatcher_ros_INCLUDE_DIRS}
 #   ${cartographer_INCLUDE_DIRS}
 #   ${cartographer_ros_INCLUDE_DIRS}
-#   ${PCL_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 #   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
 # include_directories(
@@ -60,6 +61,7 @@ include_directories(include
 link_directories(
 lib
 ${catkin_LIBRARIES}
+${PCL_LIBRARY_DIRS}
 # ${libpointmatcher_LIBRARIES}
 # ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
@@ -103,13 +105,15 @@ ${catkin_LIBRARIES}
 # 
 # add_executable(kdtree src/kd_tree.cpp)
 
-add_executable(laserscan_to_pointcloud2 src/laserscan_to_pointcloud2.cpp)
-target_link_libraries(laserscan_to_pointcloud2  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+# add_executable(laserscan_to_pointcloud2 src/laserscan_to_pointcloud2.cpp)
+# target_link_libraries(laserscan_to_pointcloud2  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(calib_rgbd_with_laser src/calib_rgbd_with_laser.cpp)
+target_link_libraries(calib_rgbd_with_laser  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
 # add_subdirectory(launch)
 
-install(TARGETS laserscan_to_pointcloud2
+install(TARGETS calib_rgbd_with_laser
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
