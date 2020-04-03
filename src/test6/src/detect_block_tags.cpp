@@ -23,6 +23,7 @@ detectBlockTags::detectBlockTags(const ros::NodeHandle& nh,
                                  const std::string& cam_type):
     nh_(nh),camera_type_(cam_type)
 {
+  init_param_ = false;
   string cam_prefix = "/jzhw/calib/camera/" + camera_type_ +"/";
   
   intrinsic_ = Mat::eye(3, 3, CV_64FC1);
