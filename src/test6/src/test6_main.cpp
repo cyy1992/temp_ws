@@ -290,6 +290,10 @@ void handleImage(const sensor_msgs::ImageConstPtr& msg )
 
 int main(int argc, char **argv)
 {
+  
+  Mat imag = imread("/home/cyy/map/sdpx_gps/show_map.png");
+  imwrite("/home/cyy/map/sdpx_gps/show_map.jpg",imag);
+  return 1;
   ros::init(argc, argv, "ImageResize");
   ros::NodeHandle n;
   string pub_img_topic;

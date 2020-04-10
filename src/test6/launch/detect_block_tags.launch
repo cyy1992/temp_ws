@@ -1,0 +1,29 @@
+<!-- -->
+<launch>
+<!--  <param name="/jzhw/calib/camera/arm/fx" value="506.1556"/>
+  <param name="/jzhw/calib/camera/arm/fy" value="505.7792"/>
+  <param name="/jzhw/calib/camera/arm/cx" value="376.3771"/>
+  <param name="/jzhw/calib/camera/arm/cy" value="198.818"/>
+  <param name="/jzhw/calib/camera/arm/k1" value="-0.3815"/>
+  <param name="/jzhw/calib/camera/arm/k2" value="0.1524"/>
+  <param name="/jzhw/calib/camera/arm/k3" value="0"/>
+  <param name="/jzhw/calib/camera/arm/k4" value="0"/>
+  
+  <param name="/tag_codec_type" value="1"/>
+  
+  <param name="/ibvs_constrained/TAG0/TAGS_PER_LINE" value="5"/>
+  <param name="/ibvs_constrained/TAG0/TAGS_TOTAL_LINES" value="5"/>
+  <param name="/ibvs_constrained/TAG0/GRID_SIZE" value="23.2833"/>
+  <param name="/ibvs_constrained/TAG0/TAG_SIZE" value="16.9333"/>
+  
+
+  <param name="/algo/property/cam_5_arm_docking_topic" value="/cam_arm_docking" />-->
+  
+  <node pkg="test6" type="detect_block_tags" name="detect_block_tags" output="screen" >
+    <param name="show_image" value="false"/>
+    <param name="TAGS_PER_LINE" value="3"/>
+    <param name="GRID_SIZE" value="28.2222"/>
+    <param name="TAG_SIZE" value="19.7556"/>
+  </node>
+
+</launch>

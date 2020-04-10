@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(test6)
 # add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 SET(CMAKE_BUILD_TYPE "Debug")
-SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 # find_package(cartographer REQUIRED)
@@ -17,10 +17,18 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   roslib
   tf
+  tf2
+  tf2_ros
+  tf2_msgs
+  tf2_sensor_msgs
   tf2_eigen
   tf_conversions
   sensor_msgs
+  geometry_msgs
   std_msgs
+  pcl_ros
+  pcl_conversions
+
 #   libpointmatcher_ros
 #   gps_common
 )
@@ -36,7 +44,7 @@ include_directories(include
 #   ${libpointmatcher_ros_INCLUDE_DIRS}
 #   ${cartographer_INCLUDE_DIRS}
 #   ${cartographer_ros_INCLUDE_DIRS}
-#   ${PCL_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 #   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
 # include_directories(
@@ -51,7 +59,9 @@ include_directories(include
 # add_executable(test6 src/test6_main.cpp)
 # target_link_libraries(test6 ${catkin_LIBRARIES} cartographer cartographer_ros)
 link_directories(
+lib
 ${catkin_LIBRARIES}
+${PCL_LIBRARY_DIRS}
 # ${libpointmatcher_LIBRARIES}
 # ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
@@ -84,6 +94,26 @@ add_executable(read_json src/read_json.cpp)
 target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 add_executable(read_yaml src/read_yaml.cpp)
 target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# add_executable(read_json src/read_json.cpp)
+# target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+# add_executable(read_yaml src/read_yaml.cpp)
+# target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# add_executable(string_operator src/string_operator.cpp)
+# target_link_libraries(string_operator -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+
+
+# add_executable(detect_block_tags src/detect_block_tags.cpp)
+# target_link_libraries(detect_block_tags -ljsoncpp 
+# image_projector apriltag
+# ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+# 
+# add_executable(kdtree src/kd_tree.cpp)
+
+# add_executable(laserscan_to_pointcloud2 src/laserscan_to_pointcloud2.cpp)
+# target_link_libraries(laserscan_to_pointcloud2  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(calib_rgbd_with_laser src/calib_rgbd_with_laser.cpp)
+target_link_libraries(calib_rgbd_with_laser  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+
 
 # add_subdirectory(launch)
 
@@ -95,6 +125,24 @@ install(TARGETS read_json read_yaml
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+install(FILES
+    lib/libapriltag.so
+    lib/libapriltag.so.3
+    lib/libapriltag.so.3.1.0
+    lib/libimage_projector.so
+    lib/libpointmatcher_ros.so
+    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 # install(FILES lib/libapriltag_mit.so
 #   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 # )
+file(GLOB_RECURSE HDRS "*.h")
+foreach(HDR ${HDRS})
+  file(RELATIVE_PATH REL_FIL ${PROJECT_SOURCE_DIR} ${HDR})
+  get_filename_component(INSTALL_DIR ${REL_FIL} DIRECTORY)
+  install(
+    FILES
+      ${HDR}
+    DESTINATION
+      ${INSTALL_DIR}
+  )
+endforeach()

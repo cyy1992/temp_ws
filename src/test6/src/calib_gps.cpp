@@ -88,7 +88,9 @@ void CalibGps::handleGps(const gps_common::GPSFix::ConstPtr& msg)
     ecef_to_local_frame_ = ComputeLocalFrameFromLatLong(msg->latitude, msg->longitude);
     cout << "ecef_to_local_frame:" << ecef_to_local_frame_;
   }
-  Rigid3d fix2 = ComputeLocalFrameFromLatLong(msg->latitude, msg->longitude);
+  Rigid3d 
+  
+  = ComputeLocalFrameFromLatLong(msg->latitude, msg->longitude);
   Rigid3d fix_pose1 = ecef_to_local_frame_ * fix2.inverse();
   geometry_msgs::PoseStamped temp_pose;
   temp_pose.header.stamp = msg->header.stamp;
