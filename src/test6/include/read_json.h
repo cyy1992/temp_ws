@@ -69,8 +69,11 @@ public:
   ReadJson(const std::string& floder_path);
   std::vector<std::string> getFilesList(const std::string& dirpath);
   std::vector<double> getAverage(const std::vector<Params>& params);
+  void checkResult(const Eigen::Vector3d& position, 
+                    const Eigen::Quaterniond& rotation);
 private:
   bool readFromFile(const std::string& file_name);
+  
   std::map<std::string,std::vector<Params>> params_with_type_;
 };
 
