@@ -36,6 +36,9 @@
 #include "cartographer/mapping/internal/optimization/optimization_problem_2d.h"
 #include "cartographer/mapping/trajectory_builder_interface.h"
 #include "cartographer/io/submap_painter.h"
+
+#include <sensor_msgs/Image.h>
+#include <fstream>
 class MergeSubmapFromNodes
 {
 public:
@@ -44,6 +47,13 @@ public:
   
   
   bool readFromPbstream(std::string filename);
+  void HandleImage(const sensor_msgs::Image::ConstPtr& msg);
+private:
+  ros::NodeHandle nh_;
+  ros::Subscriber sub_;
+  std::map<double, cartographer::transform::Rigid3d> poses_with_times_;
+  std::ofstream outFile_;
+
 };
 
 #endif // MERGESUBMAPFROMNODES_H

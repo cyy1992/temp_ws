@@ -6,9 +6,9 @@ SET(CMAKE_BUILD_TYPE "Debug")
 SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
-# find_package(cartographer REQUIRED)
-# include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
-# find_package(cartographer_ros REQUIRED)
+find_package(cartographer REQUIRED)
+include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
+find_package(cartographer_ros REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(yaml-cpp REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
@@ -42,10 +42,10 @@ include_directories(include
   ${OpenCV_INCLUDE_DIRS}
   ${YAML_CPP_INCLUDE_DIR}
 #   ${libpointmatcher_ros_INCLUDE_DIRS}
-#   ${cartographer_INCLUDE_DIRS}
-#   ${cartographer_ros_INCLUDE_DIRS}
+  ${cartographer_INCLUDE_DIRS}
+  ${cartographer_ros_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
-#   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
+  "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
 # include_directories(
 # BEFORE ${GLOG_INCLUDE_DIRS})
@@ -63,7 +63,7 @@ lib
 ${catkin_LIBRARIES}
 ${PCL_LIBRARY_DIRS}
 # ${libpointmatcher_LIBRARIES}
-# ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
+${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
 
 # add_executable(detect_tags src/detect_tag.cpp)
@@ -75,8 +75,8 @@ ${PCL_LIBRARY_DIRS}
 # add_executable(pbstream_convertor src/pbstream_convertor.cpp)
 # target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 # 
-# add_executable(merge_submap src/merge_submap_from_nodes.cpp)
-# target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(merge_submap src/merge_submap_from_nodes.cpp)
+target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_executable(pub_submap_points src/pub_submap_points.cpp)
 # target_link_libraries(pub_submap_points  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -90,12 +90,12 @@ ${PCL_LIBRARY_DIRS}
 # add_executable(tf_to_path src/tf_to_path.cpp)
 # target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
+# add_executable(read_json src/read_json.cpp)
+# target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# add_executable(read_yaml src/read_yaml.cpp)
+# target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 add_executable(read_json src/read_json.cpp)
 target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
-add_executable(read_yaml src/read_yaml.cpp)
-target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
-# add_executable(read_json src/read_json.cpp)
-# target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(string_operator src/string_operator.cpp)
@@ -111,13 +111,13 @@ target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_C
 
 # add_executable(laserscan_to_pointcloud2 src/laserscan_to_pointcloud2.cpp)
 # target_link_libraries(laserscan_to_pointcloud2  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_executable(calib_rgbd_with_laser src/calib_rgbd_with_laser.cpp)
-target_link_libraries(calib_rgbd_with_laser  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(calib_rgbd_with_laser src/calib_rgbd_with_laser.cpp)
+# target_link_libraries(calib_rgbd_with_laser  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
 # add_subdirectory(launch)
 
-install(TARGETS read_json read_yaml
+install(TARGETS merge_submap read_json
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
