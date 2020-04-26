@@ -238,6 +238,7 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
+#include <vtr_msgs/GlobalLocalizationPose.h>
 // #include <cartographer/common/time.h>
 using namespace std;
 using namespace cv;
@@ -279,6 +280,8 @@ ros::Publisher pub_;
 //   return 1;
 //   
 // }
+
+ros::Subscriber global_pose_sub_;
 void handleImage(const sensor_msgs::ImageConstPtr& msg )
 {
   Mat origin_image = cv_bridge::toCvShare(msg, "mono8")->image;
@@ -287,15 +290,35 @@ void handleImage(const sensor_msgs::ImageConstPtr& msg )
   sensor_msgs::ImagePtr msg1 = cv_bridge::CvImage(msg->header, "mono8", resize_image).toImageMsg();
   pub_.publish(msg1);
 }
-
+void handlePose(const vtr_msgs::GlobalLocalizationPoseConstPtr& msg )
+{
+  cout << "\033[32m sensor2odom: \n" << msg->sensor2odom.position.x << "," 
+  << msg->sensor2odom.position.y << ","
+  << msg->sensor2odom.position.z << ","
+  << msg->sensor2odom.orientation.w << ","
+  << msg->sensor2odom.orientation.x << ","
+  << msg->sensor2odom.orientation.y << ","
+  << msg->sensor2odom.orientation.z << endl;
+  
+  cout << "\033[33m sensor2reference: \n" << msg->sensor2reference.pose.position.x << "," 
+  << msg->sensor2reference.pose.position.y << ","
+  << msg->sensor2reference.pose.position.z << ","
+  << msg->sensor2reference.pose.orientation.w << ","
+  << msg->sensor2reference.pose.orientation.x << ","
+  << msg->sensor2reference.pose.orientation.y << ","
+  << msg->sensor2reference.pose.orientation.z <<"\033[37m"<< endl;
+}
 int main(int argc, char **argv)
 {
   
-  Mat imag = imread("/home/cyy/map/sdpx_gps/show_map.png");
-  imwrite("/home/cyy/map/sdpx_gps/show_map.jpg",imag);
-  return 1;
+//   Mat imag = imread("/home/cyy/map/sdpx_gps/show_map.png");
+//   imwrite("/home/cyy/map/sdpx_gps/show_map.jpg",imag);
+//   return 1;
   ros::init(argc, argv, "ImageResize");
   ros::NodeHandle n;
+  global_pose_sub_ = n.subscribe<vtr_msgs::GlobalLocalizationPose>("/vtr/global_localisation/response",10,handlePose);
+  ros::spin();
+  return 1;
   string pub_img_topic;
   string sub_img_topic;
   if(!ros::param::get("~sub_img_topic",sub_img_topic))
