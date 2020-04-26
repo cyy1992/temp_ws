@@ -20,6 +20,8 @@
 #include "cartographer_ros/node.h"
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros_msgs/SubmapQuery.h"
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
 #include <fstream>
 using namespace std;
 using namespace cv;
@@ -53,8 +55,9 @@ cv::Mat image16ToImage8(const cv::Mat& image16)
 }
 MergeSubmapFromNodes::MergeSubmapFromNodes()
 {
-  sub_ = nh_.subscribe("/front/color/image_raw",1000, &MergeSubmapFromNodes::HandleImage,this);
-  outFile_.open("/home/cyy/poses.txt", std::ios::out | std::ios::app);
+  sub_ = nh_.subscribe("/front/color/image_raw",10000, &MergeSubmapFromNodes::HandleImage,this);
+  outFile_.open("/home/cyy/temp/poses.txt", std::ios::out | std::ios::app);
+  img_cnt_ = 0;
 }
 
 MergeSubmapFromNodes::~MergeSubmapFromNodes()
@@ -86,12 +89,19 @@ void MergeSubmapFromNodes::HandleImage(const sensor_msgs::Image::ConstPtr& msg)
              cur_t).transform;
       
       
-      outFile_ << msg->header.stamp << "\t" << transform.translation().x() <<" " << transform.translation().y() <<" "
+      outFile_ << img_cnt_ << "\t" << transform.translation().x() <<" " << transform.translation().y() <<" "
       << transform.translation().z() <<" "<< transform.rotation().x() <<" "<< transform.rotation().y() <<" "<< transform.rotation().z()
       <<" "<< transform.rotation().w() <<endl;
+      cv::Mat img = cv_bridge::toCvCopy(msg,"bgr8")->image;
+      std::vector<int> compression_params;
+      compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+      compression_params.push_back(0);
+      imwrite("/home/cyy/temp/"+ to_string(img_cnt_)+".png",img,compression_params);
+      img_cnt_++;
       break;
     }
   }
+  
   cout << transform <<endl;
   
 }
@@ -242,7 +252,7 @@ int main(int argc, char** argv)
   ros::init(argc,argv,"read_nodes");
   
   MergeSubmapFromNodes merge;
-  merge.readFromPbstream("/home/cyy/map/.line2/map.pbstream");
+  merge.readFromPbstream("/home/cyy/map/.test01/map.pbstream");
   
   ros::spin();
   return 1;

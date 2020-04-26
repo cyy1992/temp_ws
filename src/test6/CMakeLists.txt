@@ -28,7 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   pcl_ros
   pcl_conversions
-
+  vtr_msgs
 #   libpointmatcher_ros
 #   gps_common
 )
@@ -56,8 +56,6 @@ include_directories(include
 # )
 # link_directories(${CARTOGRAPHER_CMAKE_DIR}/../../../lib/)
 
-# add_executable(test6 src/test6_main.cpp)
-# target_link_libraries(test6 ${catkin_LIBRARIES} cartographer cartographer_ros)
 link_directories(
 lib
 ${catkin_LIBRARIES}
@@ -65,6 +63,10 @@ ${PCL_LIBRARY_DIRS}
 # ${libpointmatcher_LIBRARIES}
 ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
+
+add_executable(test6 src/test6_main.cpp)
+target_link_libraries(test6 ${catkin_LIBRARIES})
+
 
 # add_executable(detect_tags src/detect_tag.cpp)
 # target_link_libraries(detect_tags ${catkin_LIBRARIES}  ${OpenCV_LIBRARIES} apriltag_mit)
@@ -117,7 +119,7 @@ target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES
 
 # add_subdirectory(launch)
 
-install(TARGETS merge_submap read_json
+install(TARGETS merge_submap read_json test6
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

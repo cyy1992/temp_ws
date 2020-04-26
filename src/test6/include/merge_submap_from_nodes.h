@@ -53,6 +53,7 @@ private:
   ros::Subscriber sub_;
   std::map<double, cartographer::transform::Rigid3d> poses_with_times_;
   std::ofstream outFile_;
+  int img_cnt_;
 
 };
 
