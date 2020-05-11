@@ -15,19 +15,23 @@
  * 
  */
 
-#ifndef READYAML_H
-#define READYAML_H
+#ifndef LINEMATCHER_H
+#define LINEMATCHER_H
 #include <iostream>
-#include <string>
-#include <yaml-cpp/yaml.h>
-class ReadYaml
+#include <opencv2/opencv.hpp>
+#include <ros/ros.h>
+#include <ceres/ceres.h>
+class LineMatcher
 {
 public:
-  ReadYaml(const std::string& path);
-  ~ReadYaml();
+  LineMatcher();
+  ~LineMatcher();
   
-  void writeYaml(const std::string& path);
-  
+private:
+  void init();
+  ros::NodeHandle nh_;
+  ros::Publisher scan1_pub_,scan2_pub_;
+  cv::Mat line_img_;
 };
 
-#endif // READYAML_H
+#endif // LINEMATCHER_H

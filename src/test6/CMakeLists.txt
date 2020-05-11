@@ -1,16 +1,20 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(test6)
-# add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
+# add_compile_options(-std=c++14)
+# add_definitions(-std=c++11)
 SET(CMAKE_BUILD_TYPE "Debug")
 SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(cartographer REQUIRED)
-include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
-find_package(cartographer_ros REQUIRED)
+# find_package(cartographer REQUIRED)
+# include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
+# find_package(cartographer_ros REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(yaml-cpp REQUIRED)
+# find_package(PkgConfig)
+pkg_check_modules(csm REQUIRED csm)
+
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   eigen_conversions
@@ -42,10 +46,11 @@ include_directories(include
   ${OpenCV_INCLUDE_DIRS}
   ${YAML_CPP_INCLUDE_DIR}
 #   ${libpointmatcher_ros_INCLUDE_DIRS}
-  ${cartographer_INCLUDE_DIRS}
-  ${cartographer_ros_INCLUDE_DIRS}
+#   ${cartographer_INCLUDE_DIRS}
+#   ${cartographer_ros_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
-  "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
+  ${csm_INCLUDE_DIRS}
+#   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
 # include_directories(
 # BEFORE ${GLOG_INCLUDE_DIRS})
@@ -60,12 +65,13 @@ link_directories(
 lib
 ${catkin_LIBRARIES}
 ${PCL_LIBRARY_DIRS}
+${csm_LIBRARY_DIRS}
 # ${libpointmatcher_LIBRARIES}
-${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
+# ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
 
-add_executable(test6 src/test6_main.cpp)
-target_link_libraries(test6 ${catkin_LIBRARIES})
+# add_executable(test6 src/test6_main.cpp)
+# target_link_libraries(test6 ${catkin_LIBRARIES})
 
 
 # add_executable(detect_tags src/detect_tag.cpp)
@@ -77,8 +83,8 @@ target_link_libraries(test6 ${catkin_LIBRARIES})
 # add_executable(pbstream_convertor src/pbstream_convertor.cpp)
 # target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 # 
-add_executable(merge_submap src/merge_submap_from_nodes.cpp)
-target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(merge_submap src/merge_submap_from_nodes.cpp)
+# target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_executable(pub_submap_points src/pub_submap_points.cpp)
 # target_link_libraries(pub_submap_points  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -94,10 +100,10 @@ target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRAR
 
 # add_executable(read_json src/read_json.cpp)
 # target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
-# add_executable(read_yaml src/read_yaml.cpp)
-# target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
-add_executable(read_json src/read_json.cpp)
-target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+add_executable(read_yaml src/read_yaml.cpp)
+target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# add_executable(read_json src/read_json.cpp)
+# target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(string_operator src/string_operator.cpp)
@@ -116,10 +122,16 @@ target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES
 # add_executable(calib_rgbd_with_laser src/calib_rgbd_with_laser.cpp)
 # target_link_libraries(calib_rgbd_with_laser  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(line_matcher src/line_matcher.cpp)
+target_link_libraries(line_matcher  -lglog ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+
+
+add_executable(laser_matcher src/laser_matcher.cpp)
+target_link_libraries(laser_matcher  ${catkin_LIBRARIES} ${csm_EXPORTED_TARGETS} ${csm_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES} )
 
 # add_subdirectory(launch)
 
-install(TARGETS merge_submap read_json test6
+install(TARGETS laser_matcher read_yaml line_matcher
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
