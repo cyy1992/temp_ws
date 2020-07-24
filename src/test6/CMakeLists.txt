@@ -13,7 +13,7 @@ find_package(cartographer_ros REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common io console)
 find_package(yaml-cpp REQUIRED)
 # find_package(PkgConfig)
-pkg_check_modules(csm REQUIRED csm)
+find_package(csm_eigen REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
@@ -49,7 +49,7 @@ include_directories(include
   ${cartographer_INCLUDE_DIRS}
   ${cartographer_ros_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
-  ${csm_INCLUDE_DIRS}
+  ${csm_eigen_INCLUDE_DIRS}
   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
 # include_directories(
@@ -65,7 +65,7 @@ link_directories(
 lib
 ${catkin_LIBRARIES}
 ${PCL_LIBRARY_DIRS}
-${csm_LIBRARY_DIRS}
+${csm_eigen_LIBRARY_DIRS}
 # ${libpointmatcher_LIBRARIES}
 ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
@@ -141,7 +141,7 @@ target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV
 
 
 # add_executable(laser_matcher src/laser_matcher.cpp)
-# target_link_libraries(laser_matcher  ${catkin_LIBRARIES} ${csm_EXPORTED_TARGETS} ${csm_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES} )
+# target_link_libraries(laser_matcher  ${catkin_LIBRARIES} ${csm_EXPORTED_TARGETS} ${csm_eigen_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES} )
 
 # add_subdirectory(launch)
 
