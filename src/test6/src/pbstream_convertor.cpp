@@ -151,6 +151,7 @@ PbstreamConvertor::PbstreamConvertor(const std::string& pbstream_path,
 //   cartographer::mapping::proto::MapBuilderOptions options;
   interval_of_submap_ = 10;
   debug_flag_ = false;
+  options_.pose_graph_options().overlapping_submaps_trimmer_2d()
   origin_pose_graph_ = absl::make_unique<cartographer::mapping::PoseGraph2D>(
         options_.pose_graph_options(),
           absl::make_unique<optimization::OptimizationProblem2D>(

@@ -239,12 +239,13 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <vtr_msgs/GlobalLocalizationPose.h>
-// #include <cartographer/common/time.h>
+#include <cartographer/common/time.h>
+#include <cartographer_ros_msgs/SetSwitch.h>
 using namespace std;
 using namespace cv;
 ros::Subscriber sub_;
 ros::Publisher pub_;
-
+ros::ServiceClient client_;
 
 // ::ros::Time ToRos(::cartographer::common::Time time)
 // {
@@ -270,67 +271,151 @@ ros::Publisher pub_;
 //           10000000ll +
 //       (time.nsec + 50) / 100); // + 50 to get the rounding correct.
 // }
-// int main(int argc, char **argv)
-// {
-//   cartographer::common::Time time(cartographer::common::Duration(636325483280538183)) ;
-//   
-//   ToRos(time);
-//   cartographer::common::Time t2{cartographer::common::Duration(636325483280510890)};
-//   ToRos(t2);
-//   return 1;
-//   
-// }
-
-ros::Subscriber global_pose_sub_;
-void handleImage(const sensor_msgs::ImageConstPtr& msg )
-{
-  Mat origin_image = cv_bridge::toCvShare(msg, "mono8")->image;
-  Mat resize_image;
-  resize(origin_image,resize_image,Size(origin_image.cols/2,origin_image.rows/2));
-  sensor_msgs::ImagePtr msg1 = cv_bridge::CvImage(msg->header, "mono8", resize_image).toImageMsg();
-  pub_.publish(msg1);
-}
-void handlePose(const vtr_msgs::GlobalLocalizationPoseConstPtr& msg )
-{
-  cout << "\033[32m sensor2odom: \n" << msg->sensor2odom.position.x << "," 
-  << msg->sensor2odom.position.y << ","
-  << msg->sensor2odom.position.z << ","
-  << msg->sensor2odom.orientation.w << ","
-  << msg->sensor2odom.orientation.x << ","
-  << msg->sensor2odom.orientation.y << ","
-  << msg->sensor2odom.orientation.z << endl;
-  
-  cout << "\033[33m sensor2reference: \n" << msg->sensor2reference.pose.position.x << "," 
-  << msg->sensor2reference.pose.position.y << ","
-  << msg->sensor2reference.pose.position.z << ","
-  << msg->sensor2reference.pose.orientation.w << ","
-  << msg->sensor2reference.pose.orientation.x << ","
-  << msg->sensor2reference.pose.orientation.y << ","
-  << msg->sensor2reference.pose.orientation.z <<"\033[37m"<< endl;
-}
 int main(int argc, char **argv)
 {
-  
-//   Mat imag = imread("/home/cyy/map/sdpx_gps/show_map.png");
-//   imwrite("/home/cyy/map/sdpx_gps/show_map.jpg",imag);
-//   return 1;
-  ros::init(argc, argv, "ImageResize");
+  ros::init(argc, argv, "temp_test");
   ros::NodeHandle n;
-  global_pose_sub_ = n.subscribe<vtr_msgs::GlobalLocalizationPose>("/vtr/global_localisation/response",10,handlePose);
-  ros::spin();
-  return 1;
-  string pub_img_topic;
-  string sub_img_topic;
-  if(!ros::param::get("~sub_img_topic",sub_img_topic))
+  client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
+  int i =0;
+  ros::Rate rate(5);
+  while(ros::ok())
   {
-    cout << "Can not get params! " <<endl;
+    rate.sleep();
+    cartographer_ros_msgs::SetSwitch srv;
+    if(i % 2 == 0)
+    {
+      srv.request.type = "LaserScanOdom";
+      srv.request.flag = true;
+      client_.call(srv);
+      srv.request.type = "StripLocalization";
+      srv.request.flag = false;
+      client_.call(srv);
+    }
+    else
+    {
+      srv.request.type = "LaserScanOdom";
+      srv.request.flag = false;
+      client_.call(srv);
+      srv.request.type = "StripLocalization";
+      srv.request.flag = true;
+      client_.call(srv);
+    }
+    cout <<"i:" <<i <<endl;
+    i++;
+    
+    ros::spinOnce();
   }
-  if(!ros::param::get("~pub_img_topic",pub_img_topic))
-  {
-    cout << "Can not get params! " <<endl;
-  }
-  sub_ = n.subscribe( sub_img_topic, 20, handleImage);
-  pub_ = n.advertise<sensor_msgs::Image>(pub_img_topic,1);
-  ros::spin();
   return 1;
+  
 }
+
+// ros::Subscriber global_pose_sub_;
+// void handleImage(const sensor_msgs::ImageConstPtr& msg )
+// {
+//   Mat origin_image = cv_bridge::toCvShare(msg, "mono8")->image;
+//   Mat resize_image;
+//   resize(origin_image,resize_image,Size(origin_image.cols/2,origin_image.rows/2));
+//   sensor_msgs::ImagePtr msg1 = cv_bridge::CvImage(msg->header, "mono8", resize_image).toImageMsg();
+//   pub_.publish(msg1);
+// }
+// void handlePose(const vtr_msgs::GlobalLocalizationPoseConstPtr& msg )
+// {
+//   cout << "\033[32m sensor2odom: \n" << msg->sensor2odom.position.x << "," 
+//   << msg->sensor2odom.position.y << ","
+//   << msg->sensor2odom.position.z << ","
+//   << msg->sensor2odom.orientation.w << ","
+//   << msg->sensor2odom.orientation.x << ","
+//   << msg->sensor2odom.orientation.y << ","
+//   << msg->sensor2odom.orientation.z << endl;
+//   
+//   cout << "\033[33m sensor2reference: \n" << msg->sensor2reference.pose.position.x << "," 
+//   << msg->sensor2reference.pose.position.y << ","
+//   << msg->sensor2reference.pose.position.z << ","
+//   << msg->sensor2reference.pose.orientation.w << ","
+//   << msg->sensor2reference.pose.orientation.x << ","
+//   << msg->sensor2reference.pose.orientation.y << ","
+//   << msg->sensor2reference.pose.orientation.z <<"\033[37m"<< endl;
+// }
+// int main(int argc, char **argv)
+// {
+//   
+// //   Mat imag = imread("/home/cyy/map/sdpx_gps/show_map.png");
+// //   imwrite("/home/cyy/map/sdpx_gps/show_map.jpg",imag);
+// //   return 1;
+//   ros::init(argc, argv, "ImageResize");
+//   ros::NodeHandle n;
+//   global_pose_sub_ = n.subscribe<vtr_msgs::GlobalLocalizationPose>("/vtr/global_localisation/response",10,handlePose);
+//   ros::spin();
+//   return 1;
+//   string pub_img_topic;
+//   string sub_img_topic;
+//   if(!ros::param::get("~sub_img_topic",sub_img_topic))
+//   {
+//     cout << "Can not get params! " <<endl;
+//   }
+//   if(!ros::param::get("~pub_img_topic",pub_img_topic))
+//   {
+//     cout << "Can not get params! " <<endl;
+//   }
+//   sub_ = n.subscribe( sub_img_topic, 20, handleImage);
+//   pub_ = n.advertise<sensor_msgs::Image>(pub_img_topic,1);
+//   ros::spin();
+//   return 1;
+// }
+// #include <iostream>
+// #include <pcl/io/pcd_io.h>
+// #include <pcl/io/ply_io.h>
+// #include <pcl/console/print.h>
+// #include <pcl/console/parse.h>
+// #include <pcl/console/time.h>
+// #include <pcl/io/vtk_lib_io.h>
+// #include <pcl/io/vtk_io.h>
+// #include <vtkPolyData.h>
+// #include <vtkSmartPointer.h>
+// #include <pcl/visualization/cloud_viewer.h>  
+//  #include <pcl/conversions.h>
+// #include <opencv2/opencv.hpp>
+// using namespace pcl;
+// using namespace pcl::io;
+// using namespace pcl::console;
+//  
+// int main()
+// {
+//   pcl::PolygonMesh mesh;
+// 
+//   if (pcl::io::loadPLYFile("/media/cyy/CYY_DISK/others/bags/gps/out1.bag_points.ply", mesh))
+//   {
+//     std::cout << "文件读取失败！";
+//   }
+//   
+//   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D viewer window"));
+//   viewer->addPolygonMesh(mesh, "mesh");
+//   while (!viewer->wasStopped())
+//   {
+//     viewer->spinOnce();
+//   }
+//   return 0;
+
+//     pcl::PCLPointCloud2 point_cloud2;
+//     pcl::PLYReader reader;
+//     reader.read("/media/cyy/CYY_DISK/others/bags/gps/out.bag_points.ply", point_cloud2);
+//     pcl::PointCloud<pcl::PointXYZI> point_cloud;
+//     pcl::fromPCLPointCloud2( point_cloud2, point_cloud);
+//     std::cout << "start reading!" <<std::endl;
+//     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+//     if (pcl::io::loadPLYFile<pcl::PointXYZ>("/media/cyy/CYY_DISK/others/bags/gps/out.bag_points.ply", *cloud) == -1) {       
+// //         PCL_ERROR("Couldnot read file.\n");
+//         std::cout << "read error!" <<std::endl;
+// //         pause();
+//         return(-1);
+//     }
+//     std::cout << "read done!" <<std::endl;
+//     pcl::visualization::CloudViewer viewer("Cloud Viewer");
+//     viewer.showCloud(cloud);
+//     
+//     pause();
+//     pcl::PCDWriter writer;
+//     writer.writeASCII("/media/cyy/CYY_DISK/others/bags/gps/data.pcd", point_cloud2);  
+//     
+//     return 0;
+// }

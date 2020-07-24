@@ -36,7 +36,10 @@
 #include "cartographer/mapping/internal/optimization/optimization_problem_2d.h"
 #include "cartographer/mapping/trajectory_builder_interface.h"
 #include "cartographer/io/submap_painter.h"
-
+#include "tf/transform_broadcaster.h"
+#include "tf_conversions/tf_eigen.h"
+#include "tf/transform_listener.h"
+#include "eigen_conversions/eigen_msg.h"
 #include <sensor_msgs/Image.h>
 #include <fstream>
 class MergeSubmapFromNodes
@@ -54,6 +57,10 @@ private:
   std::map<double, cartographer::transform::Rigid3d> poses_with_times_;
   std::ofstream outFile_;
   int img_cnt_;
+  tf2_ros::Buffer tfBuffer_;
+  tf2_ros::TransformListener tfListener_;
+  
+  cartographer::transform::Rigid3d scan2cam_;
 
 };
 

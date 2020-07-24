@@ -23,6 +23,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <fstream>
+#include <stdio.h>
 using namespace std;
 using namespace cv;
 using namespace cartographer;
@@ -53,11 +54,13 @@ cv::Mat image16ToImage8(const cv::Mat& image16)
     } 
   return image8;
 }
-MergeSubmapFromNodes::MergeSubmapFromNodes()
+MergeSubmapFromNodes::MergeSubmapFromNodes():tfBuffer_(ros::Duration(60.)),tfListener_(tfBuffer_)
 {
+  ros::Duration(1).sleep(); 
   sub_ = nh_.subscribe("/front/color/image_raw",10000, &MergeSubmapFromNodes::HandleImage,this);
-  outFile_.open("/home/cyy/temp/poses.txt", std::ios::out | std::ios::app);
+  
   img_cnt_ = 0;
+
 }
 
 MergeSubmapFromNodes::~MergeSubmapFromNodes()
@@ -68,6 +71,23 @@ MergeSubmapFromNodes::~MergeSubmapFromNodes()
 void MergeSubmapFromNodes::HandleImage(const sensor_msgs::Image::ConstPtr& msg)
 {
 //   double cur_t = msg->header.stamp.toSec();
+  geometry_msgs::TransformStamped scan2cam;
+    try
+    {
+      scan2cam = tfBuffer_.lookupTransform(
+        "camera_link3", "laser_link", ros::Time(0));
+      Eigen::Vector3d t(scan2cam.transform.translation.x,scan2cam.transform.translation.y,scan2cam.transform.translation.z);
+      Eigen::Quaterniond q(scan2cam.transform.rotation.w, 
+                           scan2cam.transform.rotation.x,
+                           scan2cam.transform.rotation.y,
+                           scan2cam.transform.rotation.z);
+      scan2cam_ = transform::Rigid3d(t,q);
+//       break;
+    }
+    catch(tf::TransformException ex)
+    {
+      LOG(WARNING) << ex.what();
+    }
   common::Time cur_t = cartographer_ros::FromRos(msg->header.stamp);
   map<double, transform::Rigid3d>::iterator it1 = poses_with_times_.begin();
   map<double, transform::Rigid3d>::iterator it2 = poses_with_times_.begin();
@@ -87,16 +107,24 @@ void MergeSubmapFromNodes::HandleImage(const sensor_msgs::Image::ConstPtr& msg)
              transform::TimestampedTransform{t22,
                                              it2->second},
              cur_t).transform;
-      
-      
-      outFile_ << img_cnt_ << "\t" << transform.translation().x() <<" " << transform.translation().y() <<" "
-      << transform.translation().z() <<" "<< transform.rotation().x() <<" "<< transform.rotation().y() <<" "<< transform.rotation().z()
-      <<" "<< transform.rotation().w() <<endl;
+             
+             
+      transform::Rigid3d map2cam = scan2cam_ * transform.inverse();
+      char num_s[256];      
+      sprintf(num_s,"%04d", img_cnt_);
+      string num_s1 = num_s;
+      string file_name = "/home/cyy/temp/Image"+ num_s1 +".png.txt";
+      outFile_.open( file_name.c_str(), std::ios::out);
+      outFile_ << map2cam.rotation().w() <<" "<< map2cam.rotation().x() <<" "<< map2cam.rotation().y() <<" "<< map2cam.rotation().z()
+      <<" "<<  map2cam.translation().x() <<" " << map2cam.translation().y() <<" "
+      << map2cam.translation().z() <<endl;
+      outFile_.close();
       cv::Mat img = cv_bridge::toCvCopy(msg,"bgr8")->image;
       std::vector<int> compression_params;
       compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
       compression_params.push_back(0);
-      imwrite("/home/cyy/temp/"+ to_string(img_cnt_)+".png",img,compression_params);
+      
+      imwrite("/home/cyy/temp/Image"+ num_s1 +".png",img,compression_params);
       img_cnt_++;
       break;
     }
@@ -252,7 +280,7 @@ int main(int argc, char** argv)
   ros::init(argc,argv,"read_nodes");
   
   MergeSubmapFromNodes merge;
-  merge.readFromPbstream("/home/cyy/map/.test01/map.pbstream");
+  merge.readFromPbstream("/home/cyy/map/zx_nj3/map.pbstream");
   
   ros::spin();
   return 1;
