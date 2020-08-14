@@ -47,20 +47,25 @@ public:
   void HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr& msg);
   
 private:
-  ros::NodeHandle nh_;
-  ros::Subscriber point_cloud_sub_;
+  
   
   void ToPCL(const sensor_msgs::PointCloud2::ConstPtr& input, pcl::PointCloud<pcl::PointXYZ>::Ptr& temp_cloud);
   void GetPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
                  std::vector<std::vector<float>> &Coffis, 
                  std::vector <pcl::PointCloud<pcl::PointXYZ>::Ptr> &result_clouds,
-                 int threshold);
+                 const unsigned int& threshold);
   void PclShow(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud);
   int FindGround(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clouds);
-  std::vector<int> FindWall(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clouds, const int& ground_index);
+  std::vector<int> FindWalls(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clouds, const int& ground_index);
   void cvFitPlane(const CvMat* points, float* plane);
+  void FitLine(std::vector<cv::Point2f>& fit_pts,cv::Mat& line);
   void FitPlane(std::vector<Eigen::Vector3f>& plane_points, float* plane12);
+  void GetCamToPlane(const cv::Point3f& vector_x, const float* plane_index, cv::Mat& rotation, cv::Mat& translation,const bool& is_reverse);
   std::vector<Eigen::Vector3f> ToEigenPoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud);
+  
+  ros::NodeHandle nh_;
+  ros::Subscriber point_cloud_sub_;
+  float max_dst_error_plane_,max_dst_error_line_;
 };
 
 #endif // PCLPROJECT_H

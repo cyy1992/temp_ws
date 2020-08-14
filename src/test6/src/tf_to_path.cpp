@@ -49,7 +49,6 @@ void TfToPath::saveTF(const ros::WallTimerEvent& unused_timer_event)
   if(path_pub_.getNumSubscribers()){
     path_pub_.publish(tf_path_);
   }
-  
 }
 int main(int argc, char** argv)
 {

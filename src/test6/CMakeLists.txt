@@ -89,6 +89,12 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 add_executable(pcl_test src/pcl_project.cpp)
 target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(reset_params src/reset_params.cpp)
+target_link_libraries(reset_params ${catkin_LIBRARIES})
+
+add_executable(wheel_odom_to_tf src/wheel_odom_to_tf.cpp)
+target_link_libraries(wheel_odom_to_tf ${catkin_LIBRARIES})
+
 
 # add_executable(pub_submap_points src/pub_submap_points.cpp)
 # target_link_libraries(pub_submap_points  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -98,6 +104,7 @@ target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIB
 
 add_executable(test6 src/test6_main.cpp)
 target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+
 
 # add_executable(tf_to_path src/tf_to_path.cpp)
 # target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
@@ -145,7 +152,7 @@ target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV
 
 # add_subdirectory(launch)
 
-install(TARGETS pcl_test depth_color_registration_node test6
+install(TARGETS pcl_test depth_color_registration_node test6 reset_params wheel_odom_to_tf
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

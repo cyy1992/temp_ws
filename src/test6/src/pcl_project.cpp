@@ -22,7 +22,9 @@ using namespace limlog;
 using namespace cv;
 PclProject::PclProject()
 {
-  point_cloud_sub_ = nh_.subscribe("/front/depth/color/points",1,&PclProject::HandleDepthPointCloud,this);
+  point_cloud_sub_ = nh_.subscribe("/front2/depth/color/points",1,&PclProject::HandleDepthPointCloud,this);
+  max_dst_error_plane_ = 0.005;
+  max_dst_error_line_ = 0.005;
 }
 
 PclProject::~PclProject()
@@ -48,7 +50,7 @@ void PclProject::PclShow(const pcl::PointCloud< pcl::PointXYZ >::Ptr& cloud)
 void PclProject::GetPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
                            std::vector<std::vector<float>> &Coffis, 
                            std::vector <pcl::PointCloud<pcl::PointXYZ>::Ptr> &result_clouds,
-                           int threshold)
+                           const unsigned int& threshold)
 {
   while (cloud->points.size() >= threshold){
     pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients); 
@@ -58,7 +60,7 @@ void PclProject::GetPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
     seg.setMaxIterations(1000);
-    seg.setDistanceThreshold(0.005);
+    seg.setDistanceThreshold(0.003);
     seg.setInputCloud(cloud);
     seg.segment(*inliers, *coefficients);
     if (inliers->indices.size() == 0){
@@ -102,46 +104,116 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
   ToPCL(msg, temp_cloud);
   std::vector<std::vector<float>> Coffis;
   std::vector <pcl::PointCloud<pcl::PointXYZ>::Ptr> result_clouds;
-  int threshold = temp_cloud->size() / 10;
+  const unsigned int threshold = temp_cloud->size() / 10;
   GetPlanes(temp_cloud,Coffis,result_clouds,threshold);
   
   //get ground
   int ground_index = FindGround(result_clouds);
+  cout << "ground_index: " << ground_index <<endl;
+  
+  vector<int> walls_index = FindWalls(result_clouds, ground_index);
+  cout << "walls_index: " << walls_index[0] <<endl;
   float plane_params[4];
   auto planes_points = ToEigenPoints(result_clouds[ground_index]);
   FitPlane(planes_points, plane_params);
-  float A = plane_params[0];
-  float B = plane_params[1];
-  float C = plane_params[2];
-  float D = plane_params[3];
-  cout << "plane index: " << A << ","<< B << ","<< C << ","<< D <<endl;
-  float sum_squar = A * A + B * B + C * C;
-  Point3f p0(0, 0, D / C);
+  Point3f vector_p1(result_clouds[ground_index]->points.rbegin()->x, 
+             result_clouds[ground_index]->points.rbegin()->y, 
+             result_clouds[ground_index]->points.rbegin()->z);
+  
+  Mat cam2plane_rot,cam2plane_t;
 
-  Point3f p1(result_clouds[ground_index]->points.rbegin()->x, result_clouds[ground_index]->points.rbegin()->y, 
-                              (D - result_clouds[ground_index]->points.rbegin()->x * A - result_clouds[ground_index]->points.rbegin()->y * B) / C);
-  Point3f vx = p1 - p0;
-  float sum = sqrt(vx.x*vx.x + vx.y*vx.y + vx.z*vx.z);
-  vx = vx * (1. / sum);
-  Point3f vz(A, B, C);
-  sum = sqrt(vz.x*vz.x + vz.y*vz.y + vz.z*vz.z);
-  vz = vz * (1. / sum);
-  Point3f vy;
-  vy = vz.cross(vx);
-  sum = sqrt(vy.x*vy.x + vy.y*vy.y + vy.z*vy.z);
-  vy = vy * (1. / sum);
+  GetCamToPlane(vector_p1,plane_params, cam2plane_rot, cam2plane_t, false);
+  vector<Point2f> fit_pts[2];
+  float sum_squar = plane_params[0] * plane_params[0] + plane_params[1] * plane_params[1] + plane_params[2] * plane_params[2];
   
-  Mat plane2camera_rot = (Mat_<float>(3, 3) <<
-    vx.x, vy.x, vz.x,
-    vx.y, vy.y, vz.y,
-    vx.z, vy.z, vz.z); 
-  Eigen::Matrix3f plane2cam_rot_eigen;
-  plane2cam_rot_eigen <<
-    vx.x, vy.x, vz.x,
-    vx.y, vy.y, vz.y,
-    vx.z, vy.z, vz.z;
+  for (size_t i = 0; i < walls_index.size(); i++)
+  {
+    int positive_cnt = 0;
+    int negtive_cnt = 0;
+    if( i == 0){
+      for (pcl::PointXYZ point : result_clouds[i]->points)
+      {
+        Mat temp_point = (Mat_<float>(3, 1) << point.x, point.y, point.z);
+        Mat newPoint_temp = cam2plane_rot * temp_point + cam2plane_t;
+        if(newPoint_temp.at<float>(2) > 0)
+          positive_cnt++;
+        else if(newPoint_temp.at<float>(2) < 0)
+          negtive_cnt++;
+      }
+      if(positive_cnt < negtive_cnt)
+      {
+        GetCamToPlane(vector_p1,plane_params, cam2plane_rot, cam2plane_t, true);
+        cout << "is reserve: true" << endl; 
+      }
+      else
+        cout << "is reserve: false" << endl;
+      cout << "all points size: " << result_clouds[i]->points.size() << "\t positive_cnt: " << positive_cnt <<", " <<negtive_cnt << endl; 
+    }
     
+    for (pcl::PointXYZ point : result_clouds[i]->points)
+    {
+      float t = (plane_params[0] * point.x + plane_params[1] * point.y + plane_params[2] * point.z - plane_params[3]) / sum_squar;
+      float x = point.x - plane_params[0] * t;
+      float y = point.y - plane_params[1] * t;
+      float z = point.z - plane_params[2] * t;
+      Mat cameraPoint = (Mat_<float>(3, 1) << x, y, z);
+      //point in new
+      Mat newPoint = cam2plane_rot * cameraPoint + cam2plane_t;
+      
+      fit_pts[i].push_back(Point2f(newPoint.at<float>(0), newPoint.at<float>(1)));
+    }
+  }
   
+  cv::Mat show_img(1000,1000,CV_8UC3,Scalar(255,255,255));
+  for(size_t i =0; i < 2; i++)
+    for(size_t j =0; j < fit_pts[i].size(); j++)
+    {
+      if(j == 0)
+        cout << fit_pts[i][j].x << "," <<fit_pts[i][j].y <<endl;
+      circle(show_img,Point(fit_pts[i][j].x * 100 + 500, fit_pts[i][j].y * 100+ 500),1, cv::Scalar(255, 0, 255));
+    }
+  
+  Mat line[2];
+  for(size_t i =0; i < 2; i++)
+  {
+    cout << "fit_pts[" << i<<"] size: " << fit_pts[i].size() <<endl;
+    FitLine(fit_pts[i],line[i]);
+    cout << "fit_pts[" << i<<"] size: " << fit_pts[i].size() <<endl;
+  }
+  for(int i =0; i < 2; i++)
+  {
+    for(unsigned int j =0; j < fit_pts[i].size(); j++)
+    {
+      circle(show_img,Point(fit_pts[i][j].x * 100 + 500, fit_pts[i][j].y * 100 +500),1, cv::Scalar(255, i * 255, 0));
+    }
+  }
+  
+  
+  
+  imshow("temp1", show_img);
+  waitKey(0);
+    
+//   Mat line[2];
+//   for(size_t i =0; i < 2; i++)
+//   {
+//     cout << "fit_pts[" << i<<"] size: " << fit_pts[i].size() <<endl;
+//     FitLine(fit_pts[i],line[i]);
+//     cout << "fit_pts[" << i<<"] size: " << fit_pts[i].size() <<endl;
+//   }
+//   
+//   for(int i =0; i < 2; i++)
+//   {
+//     for(int j =0; j < fit_pts[i].size(); j++)
+//     {
+//       circle(show_img,Point(fit_pts[i][j].x * 100 + 500, fit_pts[i][j].y * 100 +500),1, cv::Scalar(255, i * 255, 0));
+//     }
+// //     cv::line(show_img2,Point(fit_pts[i].begin()->x* 100 + 500,fit_pts[i].begin()->y* 100 + 500),
+// //              Point(fit_pts[i].rbegin()->x* 100 + 500,fit_pts[i].rbegin()->y* 100 + 500),cv::Scalar(255, 0, 0));
+//   }
+//   for(int j =0; j < laser_point_.size(); j++)
+//   {
+//     circle(show_img,Point(static_cast<int>(laser_point_[j].x() * 100 + 500), static_cast<int>(laser_point_[j].y() * 100 +500)),1, cv::Scalar(0, 255, 0));
+//   }
   
   
 
@@ -166,6 +238,50 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
   p2.addPointCloud(temp_cloud, src_h, "source");
   p2.spin();
   
+}
+
+void PclProject::GetCamToPlane(const Point3f& vector_x, const float* plane_index, 
+                               Mat& cam2plane_rot, Mat& cam2plane_t, const bool& is_reverse)
+{
+  float A = plane_index[0];
+  float B = plane_index[1];
+  float C = plane_index[2];
+  float D = plane_index[3];
+  cout << "plane index: " << A << ","<< B << ","<< C << ","<< D <<endl;
+  
+  Point3f p0(0, 0, D / C);
+  Point3f p1(vector_x.x, vector_x.y, (D - vector_x.x * A - vector_x.y * B) / C);
+  Point3f vx = p1 - p0;
+  float sum = sqrt(vx.x*vx.x + vx.y*vx.y + vx.z*vx.z);
+  vx = vx * (1. / sum);
+  Point3f vz(A, B, C);
+  sum = sqrt(vz.x*vz.x + vz.y*vz.y + vz.z*vz.z);
+  vz = vz * (1. / sum);
+  if(is_reverse)
+    vz = -vz;
+  Point3f vy;
+  vy = vz.cross(vx);
+  sum = sqrt(vy.x*vy.x + vy.y*vy.y + vy.z*vy.z);
+  vy = vy * (1. / sum);
+  
+  Mat plane2camera_rot = (Mat_<float>(3, 3) <<
+    vx.x, vy.x, vz.x,
+    vx.y, vy.y, vz.y,
+    vx.z, vy.z, vz.z); 
+  Eigen::Matrix3f plane2cam_rot_eigen;
+  plane2cam_rot_eigen <<
+    vx.x, vy.x, vz.x,
+    vx.y, vy.y, vz.y,
+    vx.z, vy.z, vz.z;
+    
+  Eigen::Quaternionf plane2cam_q_eigen(plane2cam_rot_eigen);
+  Mat plane2camera_t = (Mat_<float>(3, 1) << p0.x, p0.y, p0.z);
+  Eigen::Vector3f plane2cam_t_eigen(p0.x, p0.y, p0.z);
+  
+  cout << "plane2camera_rot: " << plane2camera_rot <<endl;
+  cout << "plane2camera_t: " << plane2camera_t.t() <<endl;
+  cam2plane_rot = plane2camera_rot.t();
+  cam2plane_t = -(cam2plane_rot * plane2camera_t);
 }
 
 void PclProject::cvFitPlane(const CvMat* points, float* plane)
@@ -205,6 +321,34 @@ void PclProject::cvFitPlane(const CvMat* points, float* plane)
   cvReleaseMat(&A);
   cvReleaseMat(&W);
   cvReleaseMat(&V);
+}
+
+void PclProject::FitLine(vector<Point2f>& fit_pts,Mat& line)
+{
+  fitLine(fit_pts, line, CV_DIST_L2, 0, 0.01, 0.01);
+  
+  float cos_theta = line.at<float>(0, 0);
+  float sin_theta = line.at<float>(1, 0);
+  float x0 = line.at<float>(2, 0), y0 = line.at<float>(3, 0);
+
+  float k = sin_theta / cos_theta;
+  float b = y0 - k * x0;
+  float sum_quar = (k * k + 1);
+  int temp_cnt = 0;
+  for(vector<Point2f>::iterator it = fit_pts.begin(); it !=fit_pts.end(); )
+  {
+    float dst = fabs(k * it->x - it->y + b)/sqrt(sum_quar);
+    if(dst > max_dst_error_line_)
+    {
+      it = fit_pts.erase(it);
+      ++temp_cnt;
+    }
+    else
+      ++it;
+  }
+  cout << "cnt: " << temp_cnt <<"\t line:" << k << ","<< b <<endl;
+  if(temp_cnt > 1)
+    FitLine(fit_pts,line);
 }
 
 void PclProject::FitPlane(std::vector<Eigen::Vector3f>& plane_points, float* plane12)
@@ -253,11 +397,11 @@ vector< Eigen::Vector3f > PclProject::ToEigenPoints(const pcl::PointCloud< pcl::
 
 int PclProject::FindGround(const vector< pcl::PointCloud< pcl::PointXYZ >::Ptr >& clouds)
 {
-  int k = 0;
+  unsigned int k = 0;
   float min_dist = 1e9;
-  for(int i =0; i < clouds.size(); i++)
+  for(unsigned int i =0; i < clouds.size(); i++)
   {
-    for(pcl::PointXYZ point: clouds[i])
+    for(pcl::PointXYZ point: clouds[i]->points)
     {
       float temp_norm = point.x * point.x + point.y * point.y + point.z * point.z;
       if(temp_norm < min_dist)
@@ -268,6 +412,24 @@ int PclProject::FindGround(const vector< pcl::PointCloud< pcl::PointXYZ >::Ptr >
     }
   }
   return k;
+}
+
+vector< int > PclProject::FindWalls(const vector< pcl::PointCloud< pcl::PointXYZ >::Ptr >& clouds,
+                                    const int& ground_index)
+{
+  int i =0;
+  vector<int> walls_index;
+  
+  for(auto cloud:clouds)
+  {
+    if(ground_index != i)
+    {
+      walls_index.push_back(i);
+    }
+    if(walls_index.size() == 2)
+      break;
+  }
+  return walls_index;
 }
 
 int main(int argc, char** argv){
