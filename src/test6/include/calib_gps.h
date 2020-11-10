@@ -31,6 +31,8 @@ class CalibGps
   {
     Eigen::Vector3d t;
     Eigen::Quaterniond q;
+    Rigid3d():t(Eigen::Vector3d(0,0,0)),q(Eigen::Quaterniond::Identity()){};
+    Rigid3d(Eigen::Vector3d t1, Eigen::Quaterniond q1):t(t1),q(q1){};
     friend std::ostream & operator << (std::ostream &, Rigid3d &pose)
     {
       std::cout << "t:[" << pose.t(0) <<","<<pose.t(1)<<","<<pose.t(2) 
@@ -78,6 +80,7 @@ private:
   bool updateState(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
   void computeExtrinsicParams();
   Rigid3d ecef_to_local_frame_;
+  Rigid3d gps2base_,gps_to_base_init_;
   nav_msgs::Path gps_path_;
   ros::Publisher path_pub_;
   

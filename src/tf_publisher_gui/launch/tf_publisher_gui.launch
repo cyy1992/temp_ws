@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="parentFrame" default="base_footprint" />
+  <arg name="childFrame" default="laser_link4" />
+  <node pkg="tf_publisher_gui" type="tf_publisher_gui" name="tf_publisher_gui2" output="screen">
+    <param name="parent_frame" value="$(arg parentFrame)" />
+    <param name="child_frame" value="$(arg childFrame)" />
+
+    <!-- the publishing rate in hz; optional, default: 10.0 -->
+    <param name="rate" value="100.0" />
+  </node>
+</launch>
