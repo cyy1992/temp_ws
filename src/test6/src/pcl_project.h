@@ -34,6 +34,8 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/extract_indices.h>
 
+#include <opencv2/opencv.hpp>
+
 #include <limlog/Log.h>
 
 class PclProject
@@ -55,6 +57,8 @@ private:
                  int threshold);
   void PclShow(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud);
   int FindGround(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clouds);
+  std::vector<int> FindWall(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clouds, const int& ground_index);
+  void cvFitPlane(const CvMat* points, float* plane);
   void FitPlane(std::vector<Eigen::Vector3f>& plane_points, float* plane12);
   std::vector<Eigen::Vector3f> ToEigenPoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud);
 };

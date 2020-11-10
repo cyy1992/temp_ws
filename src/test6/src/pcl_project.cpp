@@ -16,7 +16,7 @@
  */
 
 #include "pcl_project.h"
-#include <opencv2/opencv.hpp>
+
 using namespace std;
 using namespace limlog;
 using namespace cv;
@@ -108,7 +108,8 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
   //get ground
   int ground_index = FindGround(result_clouds);
   float plane_params[4];
-  FitPlane(ToEigenPoints(result_clouds[ground_index]), plane_params);
+  auto planes_points = ToEigenPoints(result_clouds[ground_index]);
+  FitPlane(planes_points, plane_params);
   float A = plane_params[0];
   float B = plane_params[1];
   float C = plane_params[2];
@@ -116,8 +117,9 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
   cout << "plane index: " << A << ","<< B << ","<< C << ","<< D <<endl;
   float sum_squar = A * A + B * B + C * C;
   Point3f p0(0, 0, D / C);
-  Point3f p1(result_clouds[ground_index].points.rbegin()->x, result_clouds[ground_index].points.rbegin()->y, 
-                              (D - result_clouds[ground_index].points.rbegin()->x * A - result_clouds[ground_index].points.rbegin()->y * B) / C);
+
+  Point3f p1(result_clouds[ground_index]->points.rbegin()->x, result_clouds[ground_index]->points.rbegin()->y, 
+                              (D - result_clouds[ground_index]->points.rbegin()->x * A - result_clouds[ground_index]->points.rbegin()->y * B) / C);
   Point3f vx = p1 - p0;
   float sum = sqrt(vx.x*vx.x + vx.y*vx.y + vx.z*vx.z);
   vx = vx * (1. / sum);
@@ -139,7 +141,7 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
     vx.y, vy.y, vz.y,
     vx.z, vy.z, vz.z;
     
-    
+  
   
   
 
@@ -164,6 +166,45 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
   p2.addPointCloud(temp_cloud, src_h, "source");
   p2.spin();
   
+}
+
+void PclProject::cvFitPlane(const CvMat* points, float* plane)
+{
+  int nrows = points->rows;
+  int ncols = points->cols;
+  int type = points->type;
+  CvMat* centroid = cvCreateMat(1, ncols, type);
+  cvSet(centroid, cvScalar(0));
+  for (int c = 0; c<ncols; c++){
+    for (int r = 0; r < nrows; r++)
+    {
+      centroid->data.fl[c] += points->data.fl[ncols*r + c];
+    }
+    centroid->data.fl[c] /= nrows;
+  }
+  // Subtract geometric centroid from each point.  
+  CvMat* points2 = cvCreateMat(nrows, ncols, type);
+  for (int r = 0; r<nrows; r++)
+  for (int c = 0; c<ncols; c++)
+    points2->data.fl[ncols*r + c] = points->data.fl[ncols*r + c] - centroid->data.fl[c];
+  // Evaluate SVD of covariance matrix.  
+  CvMat* A = cvCreateMat(ncols, ncols, type);
+  CvMat* W = cvCreateMat(ncols, ncols, type);
+  CvMat* V = cvCreateMat(ncols, ncols, type);
+  cvGEMM(points2, points, 1, NULL, 0, A, CV_GEMM_A_T);
+  cvSVD(A, W, NULL, V, CV_SVD_V_T);
+  // Assign plane coefficients by singular vector corresponding to smallest singular value.  
+  plane[ncols] = 0;
+  for (int c = 0; c<ncols; c++){
+    plane[c] = V->data.fl[ncols*(ncols - 1) + c];
+    plane[ncols] += plane[c] * centroid->data.fl[c];
+  }
+  // Release allocated resources.  
+  cvReleaseMat(&centroid);
+  cvReleaseMat(&points2);
+  cvReleaseMat(&A);
+  cvReleaseMat(&W);
+  cvReleaseMat(&V);
 }
 
 void PclProject::FitPlane(std::vector<Eigen::Vector3f>& plane_points, float* plane12)
