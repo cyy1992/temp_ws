@@ -34,7 +34,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   vtr_msgs
 #   libpointmatcher_ros
-#   gps_common
+  gps_common
 )
 
 catkin_package(
@@ -86,8 +86,8 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 # add_executable(merge_submap src/merge_submap_from_nodes.cpp)
 # target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(pcl_test src/pcl_project.cpp)
-target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(pcl_test src/pcl_project.cpp)
+# target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(reset_params src/reset_params.cpp)
 target_link_libraries(reset_params ${catkin_LIBRARIES})
@@ -99,8 +99,8 @@ target_link_libraries(wheel_odom_to_tf ${catkin_LIBRARIES})
 # add_executable(pub_submap_points src/pub_submap_points.cpp)
 # target_link_libraries(pub_submap_points  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-# add_executable(calib_gps src/calib_gps.cpp)
-# target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(calib_gps src/calib_gps.cpp)
+target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test6 src/test6_main.cpp)
 target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -124,6 +124,9 @@ target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRA
 
 add_executable(depth_color_registration_node src/depth_color_registration.cpp src/depth2colorAlign.cpp)
 target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+
+add_executable(point_cloud_trans src/point_cloud_trans.cpp)
+target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
@@ -152,7 +155,7 @@ target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV
 
 # add_subdirectory(launch)
 
-install(TARGETS pcl_test depth_color_registration_node test6 reset_params wheel_odom_to_tf
+install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
