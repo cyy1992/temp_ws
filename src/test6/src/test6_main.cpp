@@ -271,43 +271,43 @@ ros::ServiceClient client_;
 //           10000000ll +
 //       (time.nsec + 50) / 100); // + 50 to get the rounding correct.
 // }
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "temp_test");
-  ros::NodeHandle n;
-  client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
-  int i =0;
-  ros::Rate rate(5);
-  while(ros::ok())
-  {
-    rate.sleep();
-    cartographer_ros_msgs::SetSwitch srv;
-    if(i % 2 == 0)
-    {
-      srv.request.type = "LaserScanOdom";
-      srv.request.flag = true;
-      client_.call(srv);
-      srv.request.type = "StripLocalization";
-      srv.request.flag = false;
-      client_.call(srv);
-    }
-    else
-    {
-      srv.request.type = "LaserScanOdom";
-      srv.request.flag = false;
-      client_.call(srv);
-      srv.request.type = "StripLocalization";
-      srv.request.flag = true;
-      client_.call(srv);
-    }
-    cout <<"i:" <<i <<endl;
-    i++;
-    
-    ros::spinOnce();
-  }
-  return 1;
-  
-}
+// int main(int argc, char **argv)
+// {
+//   ros::init(argc, argv, "temp_test");
+//   ros::NodeHandle n;
+//   client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
+//   int i =0;
+//   ros::Rate rate(5);
+//   while(ros::ok())
+//   {
+//     rate.sleep();
+//     cartographer_ros_msgs::SetSwitch srv;
+//     if(i % 2 == 0)
+//     {
+//       srv.request.type = "LaserScanOdom";
+//       srv.request.flag = true;
+//       client_.call(srv);
+//       srv.request.type = "StripLocalization";
+//       srv.request.flag = false;
+//       client_.call(srv);
+//     }
+//     else
+//     {
+//       srv.request.type = "LaserScanOdom";
+//       srv.request.flag = false;
+//       client_.call(srv);
+//       srv.request.type = "StripLocalization";
+//       srv.request.flag = true;
+//       client_.call(srv);
+//     }
+//     cout <<"i:" <<i <<endl;
+//     i++;
+//     
+//     ros::spinOnce();
+//   }
+//   return 1;
+//   
+// }
 
 // ros::Subscriber global_pose_sub_;
 // void handleImage(const sensor_msgs::ImageConstPtr& msg )
@@ -419,3 +419,41 @@ int main(int argc, char **argv)
 //     
 //     return 0;
 // }
+
+int main(int argc, char **argv)
+{
+  ros::init(argc, argv, "temp_test");
+  ros::NodeHandle n;
+  client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
+  int i =0;
+  ros::Rate rate(5);
+  while(ros::ok())
+  {
+    rate.sleep();
+    cartographer_ros_msgs::SetSwitch srv;
+    if(i % 2 == 0)
+    {
+      srv.request.type = "LaserScanOdom";
+      srv.request.flag = true;
+      client_.call(srv);
+      srv.request.type = "StripLocalization";
+      srv.request.flag = false;
+      client_.call(srv);
+    }
+    else
+    {
+      srv.request.type = "LaserScanOdom";
+      srv.request.flag = false;
+      client_.call(srv);
+      srv.request.type = "StripLocalization";
+      srv.request.flag = true;
+      client_.call(srv);
+    }
+    cout <<"i:" <<i <<endl;
+    i++;
+    
+    ros::spinOnce();
+  }
+  return 1;
+  
+}
