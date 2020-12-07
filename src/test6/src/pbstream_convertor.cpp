@@ -151,7 +151,6 @@ PbstreamConvertor::PbstreamConvertor(const std::string& pbstream_path,
 //   cartographer::mapping::proto::MapBuilderOptions options;
   interval_of_submap_ = 10;
   debug_flag_ = false;
-  options_.pose_graph_options().overlapping_submaps_trimmer_2d()
   origin_pose_graph_ = absl::make_unique<cartographer::mapping::PoseGraph2D>(
         options_.pose_graph_options(),
           absl::make_unique<optimization::OptimizationProblem2D>(
@@ -771,14 +770,13 @@ int main(int argc, char** argv)
   cartographer_ros::TrajectoryOptions trajectory_options;
   std::string cartographer_path = ros::package::getPath("cartographer_ros");
   LOG(INFO) << cartographer_path;
-  const std::string path = "/home/cyy/map/1010_g2";
+  const std::string path = "/home/cyy/map/xu33";
   std::size_t t_position = path.rfind('/');
   std::string id_string = path.substr(t_position + 1);
   LOG(INFO) << id_string;
-  return 0;
   std::tie(node_options, trajectory_options) =
-     cartographer_ros::LoadOptions("/home/cyy/jz_project/cartographer_ws/install_isolated/share/cartographer_ros/configuration_files", "backpack_2d_jz_mapping.lua");
+     cartographer_ros::LoadOptions(cartographer_path + "/configuration_files", "backpack_2d_jz_mapping.lua");
   cartographer::mapping::proto::MapBuilderOptions options;
-  pbstream_convertor::PbstreamConvertor pbstream("/home/cyy/map/1010_g2",node_options.map_builder_options);
+  pbstream_convertor::PbstreamConvertor pbstream("/home/cyy/map/xu33",node_options.map_builder_options);
   return 1;
 }
