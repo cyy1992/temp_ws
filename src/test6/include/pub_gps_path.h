@@ -29,6 +29,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 #include <chrono>
+#include <std_srvs/Empty.h>
 #include <nav_msgs/Path.h>
 class PubGpsPath
 {
@@ -37,6 +38,8 @@ public:
   {
     Eigen::Vector3d t;
     Eigen::Quaterniond q;
+    Rigid3d():q(Eigen::Quaterniond::Identity()),t(Eigen::Vector3d(0,0,0)){}
+    Rigid3d(Eigen::Quaterniond q1,Eigen::Vector3d t1):q(q1),t(t1){}
     //     Rigid3d():t(Eigen::Vector3d(0,0,0)),q(Eigen::Quaterniond(1,0,0,0)){};
     friend std::ostream & operator << (std::ostream &, Rigid3d &pose)
     {
@@ -88,7 +91,11 @@ private:
   Eigen::Quaterniond eul2quat(const Eigen::Vector3d& eul);
   void pathPub(const gps_common::GPSFix& msg);
   
+  bool SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
   ros::NodeHandle nh_;
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tfListener_;
+  std::vector<ros::ServiceServer> service_servers_; 
   ros::Publisher path_pub_;  
   ros::Subscriber gps_sub_;
   
@@ -121,6 +128,9 @@ private:
   float sum_altitude_;
   bool has_gps_data_info_;
   
+  Rigid3d init_gps_pose_;
+  std::map<ros::Time, std::vector<Rigid3d>> poses_with_time_;
+  std::queue<ros::Time> times_;
 };
 
 #endif // PUBGPSPATH_H

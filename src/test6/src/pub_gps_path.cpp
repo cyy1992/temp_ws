@@ -24,10 +24,13 @@
 
 using namespace std;
 using namespace std::chrono;
-PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh_(n), map_path_(map_path)
+PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh_(n),
+  tf_buffer_{::ros::Duration(10.)}, tfListener_(tf_buffer_), map_path_(map_path)
 {
   path_pub_ = nh_.advertise<nav_msgs::Path>("/pub_gps_path/gps_path",1);
   setParam();
+  service_servers_.push_back(nh_.advertiseService(
+      "submap_server", &PubGpsPath::SaveDataSrv, this));
   gps_sub_ = nh_.subscribe<gps_common::GPSFix>("/jzhw/gps/fix", 3,
                                           &PubGpsPath::handleGps, this);
 }
@@ -42,6 +45,7 @@ constexpr double DegToRad(double deg) { return M_PI * deg / 180.; }
 constexpr double RadToDeg(double rad) { return 180. * rad / M_PI; }
 void PubGpsPath::setParam()
 {
+  //get gps2base
   double gps2base_x = 0, gps2base_y = 0, gps2base_yaw = 0;
   ::ros::param::get("/jzhw/calib/gps/default/px",gps2base_x);
   ::ros::param::get("/jzhw/calib/gps/default/py",gps2base_y);
@@ -51,6 +55,7 @@ void PubGpsPath::setParam()
   gps2base_.q = Eigen::Quaterniond(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
   std::cout <<"\033[36m gps2base_:" << gps2base_ <<"\033[0m" <<std::endl;
   
+  //get fix_in_map_, ecef_in_map_
   boost::property_tree::ptree pt;
   cout << map_path_ << "/gps_data.xml! ";
   boost::property_tree::xml_parser::read_xml(map_path_+"/gps_data.xml", pt);
@@ -107,6 +112,7 @@ void PubGpsPath::setParam()
     has_gps_data_info_ = true;
 
 }
+
 Eigen::Vector3d PubGpsPath::LatLongAltToEcef(const double latitude, const double longitude,
                                  const double altitude) {
   // https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_geodetic_to_ECEF_coordinates
@@ -146,7 +152,7 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
   Rigid3d northGps2northBase;
   double dip = valid_msg_.dip * M_PI / 180 ;
   Eigen::Quaterniond north2gps(cos(dip /2),0,0,sin(dip/2));
-  northGps2northBase.q =gps2base_.q * north2gps; 
+  northGps2northBase.q = gps2base_.q * north2gps; 
   northGps2northBase.t = gps2base_.t;
   
   Rigid3d fix_pose1;
@@ -154,7 +160,7 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
   fix_pose1.q = Eigen::Quaterniond::Identity();
   geometry_msgs::PoseStamped temp_pose;
 
-  Rigid3d base2fix =gps_to_base_init_* fix_pose1 *northGps2northBase.inverse();
+  Rigid3d base2fix =gps_to_base_init_* fix_pose1 * northGps2northBase.inverse();
 //   cout << "base2map_gps:" << base2map_gps <<endl;
   Rigid3d base_to_map_gps = fix_in_map_ * base2fix;
 
@@ -177,13 +183,35 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
       path_pub_.publish(gps_path_);
     }
   }
+  times_.push(valid_msg_.header.stamp);
+  poses_with_time_[times_.back()].push_back(base_to_map_gps);
+  
+  while(times_.size() >0 ){
+    geometry_msgs::TransformStamped base2odom;
+    try
+    { 
+      base2odom = tf_buffer_.lookupTransform("odom", "base_footprint", times_.front());
+      Eigen::Vector3d t(base2odom.transform.translation.x,
+                        base2odom.transform.translation.y,
+                        base2odom.transform.translation.z);
+      Eigen::Quaterniond q(base2odom.transform.rotation.w, base2odom.transform.rotation.x,
+                        base2odom.transform.rotation.y, base2odom.transform.rotation.z);
+      poses_with_time_[times_.front()].push_back({q,t});
+      times_.pop();
+    }
+    catch (tf2::TransformException& ex)
+    {
+      break;
+    }
+  }
+  
 }
 void PubGpsPath::pathPub(const gps_common::GPSFix& msg)
 {
   Rigid3d northGps2northBase;
   double dip = msg.dip * M_PI / 180 ;
   Eigen::Quaterniond north2gps(cos(dip /2),0,0,sin(dip/2));
-  northGps2northBase.q =gps2base_.q * north2gps; 
+  northGps2northBase.q = gps2base_.q * north2gps; 
   northGps2northBase.t = gps2base_.t;
   Rigid3d fix_pose1;
   fix_pose1.t = ecef_to_local_frame_.q * LatLongAltToEcef(msg.latitude, msg.longitude,msg.altitude) + ecef_to_local_frame_.t;
@@ -203,6 +231,26 @@ void PubGpsPath::pathPub(const gps_common::GPSFix& msg)
   if(path_pub_.getNumSubscribers()){
     path_mapping_pub_.publish(gps_mapping_path_);
   }
+  
+  
+}
+
+bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
+{
+  ofstream outFile;
+//连续写入
+  outFile.open("/home/cyy/poses_with_time.txt", std::ios::out);
+  for(auto it:poses_with_time_)
+  {
+    ros::Time time = it.first;
+    int time_int = std::round(time.toSec() * 1000);
+    outFile << time_int <<" ";
+    for(auto it2 : it.second)
+      outFile << it2.t(0) <<" "<< it2.t(1) <<" "<< it2.t(2) <<" "<< it2.q.w() <<" "<< it2.q.x() <<" "<< it2.q.y() <<" "<< it2.q.z() <<" ";
+    outFile <<endl;
+  }
+  outFile.close();
+
 }
 
 int main(int argc, char **argv)

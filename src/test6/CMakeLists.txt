@@ -172,7 +172,7 @@ target_link_libraries(crop_points ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pub_gps_path pbstream_convertor
+install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pub_gps_path pbstream_convertor crop_points
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
