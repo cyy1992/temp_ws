@@ -33,11 +33,23 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   pcl_conversions
   vtr_msgs
-#   libpointmatcher_ros
+  libpointmatcher_ros
   gps_common
 )
-
+add_service_files(
+  DIRECTORY srv
+  FILES
+  SetPose.srv)
+  
+generate_messages(
+  DEPENDENCIES
+    ${PACKAGE_DEPENDENCIES}
+    sensor_msgs
+    geometry_msgs
+)
 catkin_package(
+CATKIN_DEPENDS
+    ${PACKAGE_DEPENDENCIES}
 )
 
 include_directories(include
@@ -45,7 +57,7 @@ include_directories(include
   ${EIGEN_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
   ${YAML_CPP_INCLUDE_DIR}
-#   ${libpointmatcher_ros_INCLUDE_DIRS}
+  ${libpointmatcher_ros_INCLUDE_DIRS}
   ${cartographer_INCLUDE_DIRS}
   ${cartographer_ros_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
@@ -66,7 +78,7 @@ lib
 ${catkin_LIBRARIES}
 ${PCL_LIBRARY_DIRS}
 ${csm_eigen_LIBRARY_DIRS}
-# ${libpointmatcher_LIBRARIES}
+${libpointmatcher_LIBRARIES}
 ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
 
@@ -131,6 +143,8 @@ target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV
 add_executable(point_cloud_trans src/point_cloud_trans.cpp)
 target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
+add_executable(crop_points src/crop_points.cpp)
+target_link_libraries(crop_points ${catkin_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(string_operator src/string_operator.cpp)
