@@ -30,7 +30,7 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
   path_pub_ = nh_.advertise<nav_msgs::Path>("/pub_gps_path/gps_path",1);
   setParam();
   service_servers_.push_back(nh_.advertiseService(
-      "submap_server", &PubGpsPath::SaveDataSrv, this));
+      "save_poses_with_time", &PubGpsPath::SaveDataSrv, this));
   gps_sub_ = nh_.subscribe<gps_common::GPSFix>("/jzhw/gps/fix", 3,
                                           &PubGpsPath::handleGps, this);
 }
@@ -197,10 +197,17 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
       Eigen::Quaterniond q(base2odom.transform.rotation.w, base2odom.transform.rotation.x,
                         base2odom.transform.rotation.y, base2odom.transform.rotation.z);
       poses_with_time_[times_.front()].push_back({q,t});
+      cout << "time: " << times_.front() <<endl;
       times_.pop();
     }
     catch (tf2::TransformException& ex)
     {
+      if((times_.back() - times_.front()).toSec() > 8.0)
+      {
+        
+        poses_with_time_.erase(poses_with_time_.find(times_.front()));
+        times_.pop();
+      }
       break;
     }
   }
@@ -243,7 +250,7 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
   for(auto it:poses_with_time_)
   {
     ros::Time time = it.first;
-    int time_int = std::round(time.toSec() * 1000);
+    long time_int = std::round(time.toSec() * 1000);
     outFile << time_int <<" ";
     for(auto it2 : it.second)
       outFile << it2.t(0) <<" "<< it2.t(1) <<" "<< it2.t(2) <<" "<< it2.q.w() <<" "<< it2.q.x() <<" "<< it2.q.y() <<" "<< it2.q.z() <<" ";
@@ -257,7 +264,7 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "pub_gps_path_node");
   ros::NodeHandle n;
-  string map_name = "/home/cyy/map/temp1110";
+  string map_name = "/home/cyy/map/puyan_around";
   PubGpsPath gps(n,map_name);
   ros::spin();
   return 1;
