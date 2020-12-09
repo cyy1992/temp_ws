@@ -1,19 +1,17 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(test6)
-add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
+# add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
 # add_compile_options(-std=c++14)
 # add_definitions(-std=c++11)
-SET(CMAKE_BUILD_TYPE "Debug")
-SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
-find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(cartographer REQUIRED)
-include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
-find_package(cartographer_ros REQUIRED)
-find_package(PCL REQUIRED COMPONENTS common io console)
-find_package(yaml-cpp REQUIRED)
-# find_package(PkgConfig)
-find_package(csm_eigen REQUIRED)
+# SET(CMAKE_BUILD_TYPE "Debug")
+# SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
+add_definitions(-std=c++11)
+SET(CMAKE_BUILD_TYPE "Release") 
+# SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -DDEBUG -ggdb")
+SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall -DNDEBUG")  
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules)
 
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
@@ -36,6 +34,21 @@ find_package(catkin REQUIRED COMPONENTS
   libpointmatcher_ros
   gps_common
 )
+
+find_package(Abseil REQUIRED)
+find_package(cartographer REQUIRED)
+# include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
+find_package(cartographer_ros REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system iostreams)
+find_package(libnabo REQUIRED PATHS ${LIBNABO_INSTALL_DIR})
+find_package(PCL REQUIRED COMPONENTS common io console)
+find_package(yaml-cpp REQUIRED)
+find_package(csm_eigen REQUIRED)
+
+PKG_SEARCH_MODULE(CAIRO REQUIRED cairo>=1.12.16)
+
 add_service_files(
   DIRECTORY srv
   FILES
@@ -50,6 +63,7 @@ generate_messages(
 catkin_package(
 CATKIN_DEPENDS
     ${PACKAGE_DEPENDENCIES}
+    INCLUDE_DIRS "."
 )
 
 include_directories(include
@@ -62,8 +76,9 @@ include_directories(include
   ${cartographer_ros_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${csm_eigen_INCLUDE_DIRS}
-  "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
+#   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
+file(GLOB_RECURSE ALL_SRCS "*.cc" "*.h")
 # include_directories(
 # BEFORE ${GLOG_INCLUDE_DIRS})
 # include_directories(
@@ -117,12 +132,16 @@ target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_L
 add_executable(pub_gps_path src/pub_gps_path.cpp)
 target_link_libraries(pub_gps_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(parse_poses src/parse_poses.cpp)
+target_link_libraries(parse_poses  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+
+
 add_executable(test6 src/test6_main.cpp)
 target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
-# add_executable(tf_to_path src/tf_to_path.cpp)
-# target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+add_executable(tf_to_path src/tf_to_path.cpp)
+target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
 # add_executable(read_json src/read_json.cpp)
 # target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
@@ -143,8 +162,8 @@ target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV
 add_executable(point_cloud_trans src/point_cloud_trans.cpp)
 target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
-add_executable(crop_points src/crop_points.cpp)
-target_link_libraries(crop_points ${catkin_LIBRARIES})
+# add_executable(crop_points src/crop_points.cpp)
+# target_link_libraries(crop_points ${catkin_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(string_operator src/string_operator.cpp)
@@ -172,7 +191,7 @@ target_link_libraries(crop_points ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pub_gps_path pbstream_convertor crop_points
+install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pub_gps_path pbstream_convertor parse_poses tf_to_path
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

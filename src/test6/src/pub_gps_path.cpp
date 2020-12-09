@@ -21,9 +21,15 @@
 #include <boost/iostreams/device/back_inserter.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
-
+#include <cartographer/io/proto_stream.h>
+#include "cartographer/mapping/proto/serialization.pb.h"
+#include <sensor_msgs/point_cloud2_iterator.h>
+#include <cartographer_ros/time_conversion.h>
 using namespace std;
 using namespace std::chrono;
+using namespace cartographer;
+using mapping::proto::SerializedData;
+
 PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh_(n),
   tf_buffer_{::ros::Duration(10.)}, tfListener_(tf_buffer_), map_path_(map_path)
 {
@@ -33,6 +39,9 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
       "save_poses_with_time", &PubGpsPath::SaveDataSrv, this));
   gps_sub_ = nh_.subscribe<gps_common::GPSFix>("/jzhw/gps/fix", 3,
                                           &PubGpsPath::handleGps, this);
+  
+  odom_frame_ = "odom";
+  base_frame_ = "base_footprint";
 }
 
 PubGpsPath::~PubGpsPath()
@@ -148,6 +157,8 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
     return;
   if(msg->status.status == 2)
     valid_msg_ = *msg;
+  else 
+    return;
   geometry_msgs::TransformStamped base2map;
   Rigid3d northGps2northBase;
   double dip = valid_msg_.dip * M_PI / 180 ;
@@ -177,7 +188,7 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
     temp_pose.pose.position.y = base2map_gps.t(1);
     temp_pose.pose.position.z = base2map_gps.t(2);
     gps_path_.poses.push_back(temp_pose);
-    gps_path_.header.frame_id = "odom";
+    gps_path_.header.frame_id = odom_frame_;
 //     pathPub(valid_msg_);
     if(path_pub_.getNumSubscribers()){
       path_pub_.publish(gps_path_);
@@ -190,7 +201,7 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
     geometry_msgs::TransformStamped base2odom;
     try
     { 
-      base2odom = tf_buffer_.lookupTransform("odom", "base_footprint", times_.front());
+      base2odom = tf_buffer_.lookupTransform(odom_frame_, base_frame_, times_.front());
       Eigen::Vector3d t(base2odom.transform.translation.x,
                         base2odom.transform.translation.y,
                         base2odom.transform.translation.z);
@@ -234,12 +245,69 @@ void PubGpsPath::pathPub(const gps_common::GPSFix& msg)
   temp_pose.pose.position.z = base2map.t(2);
 //   cout << base2map_gps <<endl;
   gps_mapping_path_.poses.push_back(temp_pose);
-  gps_mapping_path_.header.frame_id = "odom";
+  gps_mapping_path_.header.frame_id = odom_frame_;
   if(path_pub_.getNumSubscribers()){
     path_mapping_pub_.publish(gps_mapping_path_);
   }
-  
-  
+}
+
+void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
+{
+  mapping::TrajectoryNode::Data data;
+  sensor::PointCloud cloud;
+  sensor_msgs::PointCloud2 origin_cloud = *msg;
+  sensor_msgs::PointCloud2Iterator<float> iter_x(origin_cloud, "x");
+  sensor_msgs::PointCloud2Iterator<float> iter_y(origin_cloud, "y");
+  sensor_msgs::PointCloud2Iterator<float> iter_z(origin_cloud, "z");
+  sensor_msgs::PointCloud2Iterator<float> iter_intensity(origin_cloud, "intensity");
+  int range_size = origin_cloud.width * origin_cloud.height;
+  for(int i = 0; i < range_size; i++)
+  {
+    Eigen::Vector3f point;
+    point(0) = *iter_x;
+    point(1) = *iter_y;
+    point(2) = *iter_z;
+    float intensity = *iter_intensity;
+    ++iter_x;
+    ++iter_y;
+    ++iter_z;
+    ++iter_intensity;
+    cloud.push_back({point,intensity});
+  }
+  cloud_times_.push(msg->header.stamp);
+  data.high_resolution_point_cloud = cloud;
+  data.time = cartographer_ros::FromRos(cloud_times_.back());
+  cloud_with_time_[cloud_times_.back()] = data;
+  while(cloud_times_.size() > 0)
+  {
+    geometry_msgs::TransformStamped lidar2odom;
+    try
+    { 
+      lidar2odom = tf_buffer_.lookupTransform(odom_frame_, lidar_frame_, cloud_times_.front());
+      Eigen::Vector3d t(lidar2odom.transform.translation.x,
+                        lidar2odom.transform.translation.y,
+                        lidar2odom.transform.translation.z);
+      Eigen::Quaterniond q(lidar2odom.transform.rotation.w, lidar2odom.transform.rotation.x,
+                        lidar2odom.transform.rotation.y, lidar2odom.transform.rotation.z);
+      Rigid3d lidar2odom_pose(q,t);
+      for(auto& point : cloud_with_time_[cloud_times_.back()].high_resolution_point_cloud)
+      {
+        point.position = lidar2odom_pose * point.position;
+      }
+      cout << "cloud_times: " << cloud_times_.front() <<endl;
+      cloud_times_.pop();
+    }
+    catch (tf2::TransformException& ex)
+    {
+      if((cloud_times_.back() - cloud_times_.front()).toSec() > 8.0)
+      {
+        cloud_with_time_.erase(cloud_with_time_.find(cloud_times_.front()));
+        cloud_times_.pop();
+      }
+      break;
+    }
+
+  }
 }
 
 bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
@@ -257,7 +325,18 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
     outFile <<endl;
   }
   outFile.close();
-
+  
+  io::ProtoStreamWriter writer("/home/cyy/1.pbstream");
+  int k = 0;
+  for (const auto& node : cloud_with_time_) {
+    SerializedData proto;
+    auto* const node_proto = proto.mutable_node();
+    node_proto->mutable_node_id()->set_trajectory_id(0);
+    node_proto->mutable_node_id()->set_node_index(k++);
+    *node_proto->mutable_node_data() = mapping::ToProto(node.second);
+    writer.WriteProto(proto);
+  }
+  writer.Close();
 }
 
 int main(int argc, char **argv)
