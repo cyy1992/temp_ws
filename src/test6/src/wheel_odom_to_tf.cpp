@@ -16,7 +16,8 @@
  */
 
 #include "wheel_odom_to_tf.h"
-
+#include <eigen_conversions/eigen_msg.h>
+using namespace std;
 WheelOdomToTF::WheelOdomToTF(const ros::NodeHandle& n):nh_(n),initial_pose_(Eigen::Affine3d::Identity()),initialised_(false)
 {
   sub_ = nh_.subscribe("/emma_odom",10,&WheelOdomToTF::HandleWheelOdomtry,this);
@@ -42,7 +43,10 @@ void WheelOdomToTF::HandleWheelOdomtry(const nav_msgs::Odometry::ConstPtr& msg)
   pub_msg.header.frame_id = "odom";
   pub_msg.child_frame_id = "base_footprint";
   tf::transformEigenToMsg( initial_pose_.inverse() * cur_pose_eigen,pub_msg.transform);
-  tf_broadcaster_.sendTransform(pub_msg);
+  Eigen::Affine3d temp;
+  tf::transformMsgToEigen(pub_msg.transform, temp);
+  cout << "relative_pose: " << temp.translation().transpose() <<endl;
+//   tf_broadcaster_.sendTransform(pub_msg);
 }
 
 
