@@ -28,6 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
   vtr_msgs
   libpointmatcher_ros
   gps_common
+  cartographer_ros_msgs
 )
 
 find_package(Abseil REQUIRED)
@@ -101,8 +102,8 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 add_executable(pbstream_convertor src/pbstream_convertor.cpp)
 target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 # 
-# add_executable(merge_submap src/merge_submap_from_nodes.cpp)
-# target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(merge_submap src/merge_submap_from_nodes.cpp)
+target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_executable(pcl_test src/pcl_project.cpp)
 # target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -113,6 +114,8 @@ target_link_libraries(reset_params ${catkin_LIBRARIES})
 add_executable(wheel_odom_to_tf src/wheel_odom_to_tf.cpp)
 target_link_libraries(wheel_odom_to_tf ${catkin_LIBRARIES})
 
+add_executable(get_tf_poses src/get_tf_poses.cpp)
+target_link_libraries(get_tf_poses ${catkin_LIBRARIES})
 
 # add_executable(pub_submap_points src/pub_submap_points.cpp)
 # target_link_libraries(pub_submap_points  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -120,16 +123,20 @@ target_link_libraries(wheel_odom_to_tf ${catkin_LIBRARIES})
 add_executable(calib_gps src/calib_gps.cpp)
 target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(pub_gps_path src/pub_gps_path.cpp)
-target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(pub_gps_path src/pub_gps_path.cpp)
+# target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(parse_poses src/parse_poses.cpp)
 target_link_libraries(parse_poses  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
+add_executable(generate_pbstream_from_pcd src/generate_pbstream_from_pcd.cpp)
+target_link_libraries(generate_pbstream_from_pcd cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
 add_executable(test6 src/test6_main.cpp)
 target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(merge_cloud_from_pbstream src/merge_cloud_from_pbstream.cpp)
+target_link_libraries(merge_cloud_from_pbstream cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
 
 add_executable(tf_to_path src/tf_to_path.cpp)
 target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
@@ -182,7 +189,7 @@ target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pub_gps_path pbstream_convertor parse_poses tf_to_path
+install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pbstream_convertor parse_poses tf_to_path merge_cloud_from_pbstream
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -190,24 +197,22 @@ install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
 install(FILES
-    lib/libapriltag.so
-    lib/libapriltag.so.3
-    lib/libapriltag.so.3.1.0
     lib/libimage_projector.so
     lib/libpointmatcher_ros.so
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-# install(FILES lib/libapriltag_mit.so
-#   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-# )
-file(GLOB_RECURSE HDRS "*.h")
-foreach(HDR ${HDRS})
-  file(RELATIVE_PATH REL_FIL ${PROJECT_SOURCE_DIR} ${HDR})
-  get_filename_component(INSTALL_DIR ${REL_FIL} DIRECTORY)
-  install(
-    FILES
-      ${HDR}
-    DESTINATION
-      ${INSTALL_DIR}
-  )
-endforeach()
+# # install(FILES lib/libapriltag_mit.so
+# #   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+# # )
+# file(GLOB_RECURSE HDRS "*.h")
+# foreach(HDR ${HDRS})
+#   file(RELATIVE_PATH REL_FIL ${PROJECT_SOURCE_DIR} ${HDR})
+#   get_filename_component(INSTALL_DIR ${REL_FIL} DIRECTORY)
+#   install(
+#     FILES
+#       ${HDR}
+#     DESTINATION
+#       ${INSTALL_DIR}
+#   )
+# endforeach()

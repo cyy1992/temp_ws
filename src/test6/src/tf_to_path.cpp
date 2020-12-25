@@ -16,15 +16,19 @@
  */
 
 #include "tf_to_path.h"
+#include <tf_conversions/tf_eigen.h>
+#include <eigen_conversions/eigen_msg.h>
 using namespace std;
 using namespace cv;
 TfToPath::TfToPath(const ros::NodeHandle& nh,const std::string& frame,
            const std::string& sub_frame):nh_(nh),frame_(frame),sub_frame_(sub_frame),
-           tfBuffer_(ros::Duration(20.)),tfListener_(tfBuffer_)
+           tfBuffer_(ros::Duration(20.)),tfListener_(tfBuffer_),initial_(true)
 {
   string path_name = sub_frame+"_to_"+frame +"_path";
-  path_pub_ = nh_.advertise<nav_msgs::Path>(path_name,1);
-  timer_ = nh_.createWallTimer(ros::WallDuration(0.2),
+  string points_name = sub_frame+"_to_"+frame +"_pose";
+  path_pub_ = nh_.advertise<nav_msgs::Path>(path_name,10);
+  points_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(points_name,10);
+  timer_ = nh_.createWallTimer(ros::WallDuration(0.02),
                                &TfToPath::saveTF,this);
 }
 
@@ -44,10 +48,25 @@ void TfToPath::saveTF(const ros::WallTimerEvent& unused_timer_event)
   temp_pose.pose.position.x = base2map.transform.translation.x;
   temp_pose.pose.position.y = base2map.transform.translation.y;
   temp_pose.pose.position.z = base2map.transform.translation.z;
+  Eigen::Affine3d base2map_eigen = Eigen::Affine3d::Identity();
+  tf::transformMsgToEigen(base2map.transform,base2map_eigen);
+  if(initial_)
+  {
+    initial_ = false;
+    first_pose_ = base2map_eigen;
+  }
   tf_path_.poses.push_back(temp_pose);
   tf_path_.header.frame_id = frame_;
   if(path_pub_.getNumSubscribers()){
     path_pub_.publish(tf_path_);
+  }
+  if(points_pub_.getNumSubscribers())
+  {
+    Eigen::Affine3d relative_pose = first_pose_.inverse() * base2map_eigen;
+    geometry_msgs::PoseStamped temp_pose2;
+    temp_pose2.header = temp_pose.header;
+    tf::poseEigenToMsg(relative_pose,temp_pose2.pose);
+    points_pub_.publish(temp_pose2);
   }
 }
 int main(int argc, char** argv)

@@ -1,17 +1,17 @@
-// #include <opencv2/core/core.hpp>
-// #include<opencv2/opencv.hpp>
-// #include<iostream>
-// #include <string>
-// using namespace cv;
-// using namespace std;
-// int main()
-// {
+#include <opencv2/core/core.hpp>
+#include<opencv2/opencv.hpp>
+#include<iostream>
+#include <string>
+using namespace cv;
+using namespace std;
+int main()
+{
 //     Mat image=imread("/home/cyy/map/2dtest3/bool_image.png");
 //     if(image.empty())
 //     {
 //         cout<<"image is empty"<<endl;
-//         return 0;
-//     }
+        return 0;
+    }
 //     Mat mask = Mat(Size(image.cols, image.rows),CV_8UC1,Scalar(255)); 
 //     Point p1 = { 25, 60 };  Point p2 = { 50, 110 };  Point p4 = { 100, 60 }; Point p3 = { 100, 110 }; /*Point p5 = { 50, 10 };*/
 //     vector<Point> contour;
@@ -230,22 +230,22 @@
 // 	
 // }
 
-#include <iostream>
-#include <ros/ros.h>
-#include <ros/package.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/SetCameraInfo.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/opencv.hpp>
-#include <vtr_msgs/GlobalLocalizationPose.h>
-#include <cartographer/common/time.h>
-#include <cartographer_ros_msgs/SetSwitch.h>
-using namespace std;
-using namespace cv;
-ros::Subscriber sub_;
-ros::Publisher pub_;
-ros::ServiceClient client_;
+// #include <iostream>
+// #include <ros/ros.h>
+// #include <ros/package.h>
+// #include <sensor_msgs/Image.h>
+// #include <sensor_msgs/SetCameraInfo.h>
+// #include <geometry_msgs/TwistStamped.h>
+// #include <cv_bridge/cv_bridge.h>
+// #include <opencv2/opencv.hpp>
+// #include <vtr_msgs/GlobalLocalizationPose.h>
+// #include <cartographer/common/time.h>
+// #include <cartographer_ros_msgs/SetSwitch.h>
+// using namespace std;
+// using namespace cv;
+// ros::Subscriber sub_;
+// ros::Publisher pub_;
+// ros::ServiceClient client_;
 
 // ::ros::Time ToRos(::cartographer::common::Time time)
 // {
@@ -375,26 +375,39 @@ ros::ServiceClient client_;
 // #include <pcl/visualization/cloud_viewer.h>  
 //  #include <pcl/conversions.h>
 // #include <opencv2/opencv.hpp>
+// #include <stdio.h>
 // using namespace pcl;
 // using namespace pcl::io;
 // using namespace pcl::console;
-//  
+//  using namespace std;
 // int main()
 // {
-//   pcl::PolygonMesh mesh;
+//   FILE *fp;
+//   char buffer[20];
 // 
-//   if (pcl::io::loadPLYFile("/media/cyy/CYY_DISK/others/bags/gps/out1.bag_points.ply", mesh))
+//   fp = popen("cat /home/cyy/jz_total_*.txt |grep calib | awk -F'==' '{print $2}'", "r");
+//   if (fp != NULL)
 //   {
-//     std::cout << "文件读取失败！";
+//     while (fgets(buffer, 20, fp) != NULL)
+//     {}
+//     pclose(fp);
 //   }
 //   
-//   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D viewer window"));
-//   viewer->addPolygonMesh(mesh, "mesh");
-//   while (!viewer->wasStopped())
-//   {
-//     viewer->spinOnce();
-//   }
-//   return 0;
+//   cout << temp <<"."<<endl;
+  // pcl::PolygonMesh mesh;
+
+  // if (pcl::io::loadPLYFile("/media/cyy/CYY_DISK/others/bags/gps/out1.bag_points.ply", mesh))
+  // {
+  //   std::cout << "文件读取失败！";
+  // }
+  
+  // boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D viewer window"));
+  // viewer->addPolygonMesh(mesh, "mesh");
+  // while (!viewer->wasStopped())
+  // {
+  //   viewer->spinOnce();
+  // }
+  // return 0;
 
 //     pcl::PCLPointCloud2 point_cloud2;
 //     pcl::PLYReader reader;
@@ -409,6 +422,7 @@ ros::ServiceClient client_;
 // //         pause();
 //         return(-1);
 //     }
+//     
 //     std::cout << "read done!" <<std::endl;
 //     pcl::visualization::CloudViewer viewer("Cloud Viewer");
 //     viewer.showCloud(cloud);
@@ -416,44 +430,43 @@ ros::ServiceClient client_;
 //     pause();
 //     pcl::PCDWriter writer;
 //     writer.writeASCII("/media/cyy/CYY_DISK/others/bags/gps/data.pcd", point_cloud2);  
-//     
 //     return 0;
-// }
+//     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "temp_test");
-  ros::NodeHandle n;
-  client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
-  int i =0;
-  ros::Rate rate(5);
-  while(ros::ok())
-  {
-    rate.sleep();
-    cartographer_ros_msgs::SetSwitch srv;
-    if(i % 2 == 0)
-    {
-      srv.request.type = "LaserScanOdom";
-      srv.request.flag = true;
-      client_.call(srv);
-      srv.request.type = "StripLocalization";
-      srv.request.flag = false;
-      client_.call(srv);
-    }
-    else
-    {
-      srv.request.type = "LaserScanOdom";
-      srv.request.flag = false;
-      client_.call(srv);
-      srv.request.type = "StripLocalization";
-      srv.request.flag = true;
-      client_.call(srv);
-    }
-    cout <<"i:" <<i <<endl;
-    i++;
-    
-    ros::spinOnce();
-  }
-  return 1;
-  
-}
+// int main(int argc, char **argv)
+// {
+//   ros::init(argc, argv, "temp_test");
+//   ros::NodeHandle n;
+//   client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
+//   int i =0;
+//   ros::Rate rate(5);
+//   while(ros::ok())
+//   {
+//     rate.sleep();
+//     cartographer_ros_msgs::SetSwitch srv;
+//     if(i % 2 == 0)
+//     {
+//       srv.request.type = "LaserScanOdom";
+//       srv.request.flag = true;
+//       client_.call(srv);
+//       srv.request.type = "StripLocalization";
+//       srv.request.flag = false;
+//       client_.call(srv);
+//     }
+//     else
+//     {
+//       srv.request.type = "LaserScanOdom";
+//       srv.request.flag = false;
+//       client_.call(srv);
+//       srv.request.type = "StripLocalization";
+//       srv.request.flag = true;
+//       client_.call(srv);
+//     }
+//     cout <<"i:" <<i <<endl;
+//     i++;
+//     
+//     ros::spinOnce();
+//   }
+//   return 1;
+//   
+// }
