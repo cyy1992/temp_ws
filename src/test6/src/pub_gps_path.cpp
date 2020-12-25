@@ -25,10 +25,13 @@
 #include "cartographer/mapping/proto/serialization.pb.h"
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <cartographer_ros/time_conversion.h>
+#include <cartographer/sensor/internal/voxel_filter.h>
 using namespace std;
 using namespace std::chrono;
 using namespace cartographer;
 using mapping::proto::SerializedData;
+static constexpr int kMappingStateSerializationFormatVersion = 2;
+static constexpr int kFormatVersionWithoutSubmapHistograms = 1;
 
 PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh_(n),
   tf_buffer_{::ros::Duration(10.)}, tfListener_(tf_buffer_), map_path_(map_path)
@@ -39,9 +42,11 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
       "save_poses_with_time", &PubGpsPath::SaveDataSrv, this));
   gps_sub_ = nh_.subscribe<gps_common::GPSFix>("/jzhw/gps/fix", 3,
                                           &PubGpsPath::handleGps, this);
-  
-  odom_frame_ = "odom";
-  base_frame_ = "base_footprint";
+  lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/pointcloud_front", 3,
+                                          &PubGpsPath::handlePointcloud, this);
+  odom_frame_ = "map";
+  base_frame_ = "base_link";
+  lidar_frame_ = "base_link";
 }
 
 PubGpsPath::~PubGpsPath()
@@ -253,7 +258,7 @@ void PubGpsPath::pathPub(const gps_common::GPSFix& msg)
 
 void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
-  mapping::TrajectoryNode::Data data;
+  
   sensor::PointCloud cloud;
   sensor_msgs::PointCloud2 origin_cloud = *msg;
   sensor_msgs::PointCloud2Iterator<float> iter_x(origin_cloud, "x");
@@ -275,9 +280,9 @@ void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
     cloud.push_back({point,intensity});
   }
   cloud_times_.push(msg->header.stamp);
-  data.high_resolution_point_cloud = cloud;
-  data.time = cartographer_ros::FromRos(cloud_times_.back());
-  cloud_with_time_[cloud_times_.back()] = data;
+  
+  origin_cloud_with_time_[cloud_times_.back()] = sensor::VoxelFilter(0.1).Filter(cloud);
+  
   while(cloud_times_.size() > 0)
   {
     geometry_msgs::TransformStamped lidar2odom;
@@ -290,10 +295,18 @@ void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
       Eigen::Quaterniond q(lidar2odom.transform.rotation.w, lidar2odom.transform.rotation.x,
                         lidar2odom.transform.rotation.y, lidar2odom.transform.rotation.z);
       Rigid3d lidar2odom_pose(q,t);
-      for(auto& point : cloud_with_time_[cloud_times_.back()].high_resolution_point_cloud)
+      cout << lidar2odom_pose <<endl;
+      mapping::TrajectoryNode::Data data;
+      data.high_resolution_point_cloud.reserve(origin_cloud_with_time_[cloud_times_.front()].size());
+      data.time = cartographer_ros::FromRos(cloud_times_.front());
+      for(const auto& point : origin_cloud_with_time_[cloud_times_.front()])
       {
-        point.position = lidar2odom_pose * point.position;
+        sensor::RangefinderPoint p;
+        p.position = lidar2odom_pose * point.position;
+        p.intensity = point.intensity;
+        data.high_resolution_point_cloud.push_back(p);
       }
+      cloud_with_time_[cloud_times_.front()] = data;
       cout << "cloud_times: " << cloud_times_.front() <<endl;
       cloud_times_.pop();
     }
@@ -327,6 +340,9 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
   outFile.close();
   
   io::ProtoStreamWriter writer("/home/cyy/1.pbstream");
+  mapping::proto::SerializationHeader header;
+  header.set_format_version(kMappingStateSerializationFormatVersion);
+  writer.WriteProto(header);
   int k = 0;
   for (const auto& node : cloud_with_time_) {
     SerializedData proto;
@@ -337,6 +353,7 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
     writer.WriteProto(proto);
   }
   writer.Close();
+  cout <<"save done!" <<endl;
 }
 
 int main(int argc, char **argv)

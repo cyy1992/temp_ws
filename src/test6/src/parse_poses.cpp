@@ -16,17 +16,34 @@
  */
 
 #include "parse_poses.h"
+#include <cartographer/io/proto_stream.h>
+#include <cartographer/io/proto_stream_deserializer.h>
+#include "cartographer/mapping/proto/serialization.pb.h"
+#include <cartographer_ros/time_conversion.h>
+#include <cartographer_ros/msg_conversion.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
+#include <cartographer/sensor/internal/voxel_filter.h>
+
 using namespace std;
+using namespace std::chrono;
+using namespace cartographer;
+using mapping::proto::SerializedData;
+
 ParsePoses::ParsePoses(const ros::NodeHandle& n):nh_(n)
 {
   path1_pub_ = nh_.advertise<nav_msgs::Path>("/ParsePoses/path1",1);
   path2_pub_ = nh_.advertise<nav_msgs::Path>("/ParsePoses/path2",1);
   gps_path_pub_ = nh_.advertise<nav_msgs::Path>("/ParsePoses/gps_path",1);
+  cloud1_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/ParsePoses/submap1",1);
+  cloud2_pub_  = nh_.advertise<sensor_msgs::PointCloud2>("/ParsePoses/submap2",1);
   ReadData("/home/cyy/1.txt","/home/cyy/2.txt" );
-  srv_ = nh_.advertiseService("setStep",&ParsePoses::SetStep, this);
+  srvs_.push_back(nh_.advertiseService("setStep",&ParsePoses::SetStep, this));
+  srvs_.push_back(nh_.advertiseService("setSubmapShowId",&ParsePoses::SetSubmapShowId, this));
   timer_pub_ = nh_.createWallTimer(ros::WallDuration(1), &ParsePoses::PubPath,this);
   
-  
+//   string pbstream1 = "/home/cyy/11.pbstream";
+//   string pbstream2 = "/home/cyy/22.pbstream";
+//   ParsePbstream(pbstream1,pbstream2);
 }
 
 ParsePoses::~ParsePoses()
@@ -93,6 +110,37 @@ void ParsePoses::ReadData(const string& file1, const string& file2)
   cout << poses_with_time_.size()<<endl;
   fi2.close();
 }
+sensor_msgs::PointCloud2 ParsePoses::ToPointCloud2Msg(const sensor::PointCloud& cloud)
+{
+  sensor_msgs::PointCloud2 cloud_msg;
+  cloud_msg.header.stamp = ros::Time::now();
+  cloud_msg.header.frame_id = "odom";
+  cloud_msg.height = 1;
+  cloud_msg.width = cloud.size();
+//   cout << points_.size() <<endl;
+  sensor_msgs::PointCloud2Modifier modifier(cloud_msg);
+  modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::PointField::FLOAT32,
+                                "y", 1, sensor_msgs::PointField::FLOAT32, "z",
+                                1, sensor_msgs::PointField::FLOAT32, "intensity",
+                                1, sensor_msgs::PointField::FLOAT32);
+  modifier.resize(cloud.size());
+  sensor_msgs::PointCloud2Iterator<float> iter_x(cloud_msg, "x");
+  sensor_msgs::PointCloud2Iterator<float> iter_y(cloud_msg, "y");
+  sensor_msgs::PointCloud2Iterator<float> iter_z(cloud_msg, "z");
+  sensor_msgs::PointCloud2Iterator<float> iter_intensity(cloud_msg, "intensity");
+  for(const auto& point : cloud)
+  {
+    *iter_x = point.position.x();
+    *iter_y = point.position.y();
+    *iter_z = point.position.z();
+    *iter_intensity = point.intensity;
+    ++iter_x;
+    ++iter_y;
+    ++iter_z;
+    ++iter_intensity;
+  }
+  return cloud_msg;
+}
 
 bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
 {
@@ -110,6 +158,21 @@ bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool:
   path2_.poses.clear();
   gps_path_.poses.clear();
   long last_time = poses_with_time_.begin()->first;
+  auto temp111 = cloud1_with_time_;
+  auto temp222 = cloud2_with_time_;
+  map<ros::Time, sensor::PointCloud>::iterator cloud_with_time_it = temp111.begin();
+  map<ros::Time, sensor::PointCloud>::iterator cloud2_with_time_it = temp222.begin();
+  cartographer::sensor::PointCloud cloud1, cloud2;
+//   for(auto  cloud:cloud1_with_time_)
+//   {
+//     
+//     if((kk++) > 100)
+//       cloud1.insert(cloud1.end(),cloud.second.begin(),cloud.second.end());
+// //     else if((kk++) > 3 * step_num )
+// //       break;
+//   }
+  double last_gps_time = last_time * 1.0 / 1000.0;
+  int kk = 0;
   for(auto it : poses_with_time_)
   {
     k++;
@@ -120,7 +183,44 @@ bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool:
       odom2_pose_std = lidar2base * it.second[2] * lidar2base.inverse();
       k = 0;
       last_time = it.first;
+      last_gps_time = last_time * 1.0 / 1000.0;
+      kk++;
     }
+    if(k == 0)
+    {
+      clouds1_.push_back(sensor::VoxelFilter(0.1).Filter(cloud1));
+      cout << clouds1_[kk-1].size() <<endl;
+      cartographer::sensor::PointCloud().swap(cloud1);
+      
+      clouds2_.push_back(sensor::VoxelFilter(0.1).Filter(cloud2));
+      cout <<kk <<", " << clouds2_[kk-1].size() <<endl;
+      cartographer::sensor::PointCloud().swap(cloud2);
+    }
+    double cur_gps_time = it.first * 1.0 / 1000.0;
+    if(temp111.size() > 0){
+      while(last_gps_time - cloud_with_time_it->first.toSec() > 0)
+      {
+        cloud_with_time_it = temp111.erase(cloud_with_time_it);
+      }
+      while(cur_gps_time - cloud_with_time_it->first.toSec() > 0)
+      {
+        cloud1.insert(cloud1.end(),cloud_with_time_it->second.begin(),cloud_with_time_it->second.end());
+        cloud_with_time_it = temp111.erase(cloud_with_time_it);
+      }
+    }
+    
+    if(temp222.size() > 0){
+      while(last_gps_time - cloud2_with_time_it->first.toSec() > 0)
+      {
+        cloud2_with_time_it = temp222.erase(cloud2_with_time_it);
+      }
+      while(cur_gps_time - cloud2_with_time_it->first.toSec() > 0)
+      {
+        cloud2.insert(cloud2.end(),cloud2_with_time_it->second.begin(),cloud2_with_time_it->second.end());
+        cloud2_with_time_it = temp222.erase(cloud2_with_time_it);
+      }
+    }
+    
     Rigid3d pose1 = gps_pose_std * odom1_pose_std.inverse() * it.second[1];
     Rigid3d pose2 = gps_pose_std * odom2_pose_std.inverse() *lidar2base * it.second[2] * lidar2base.inverse();
     geometry_msgs::PoseStamped temp_pose1,temp_pose2,temp_pose3;
@@ -155,21 +255,80 @@ bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool:
     path2_.poses.push_back(temp_pose2);
     gps_path_.poses.push_back(temp_pose3);
   }
+  clouds1_.push_back(cloud1);
+  clouds2_.push_back(cloud2);
+//   
+  response.success = true;
+  cout << kk <<", " <<clouds1_.size() <<endl;
+  cout << kk <<", " <<clouds2_.size() <<endl;
+//   cloud1_ = ToPointCloud2Msg(sensor::VoxelFilter(0.5).Filter(cloud1));
+  return true;
+}
+
+bool ParsePoses::SetSubmapShowId(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response)
+{
+  int show_num = request.data;
+  if(show_num >= clouds1_.size()){
+    response.success = false;
+    return true;
+  }
+  response.success = true;
+  cloud1_ = ToPointCloud2Msg(clouds1_[show_num]);
+  cloud2_ = ToPointCloud2Msg(clouds2_[show_num]);
+  return true;
 }
 
 void ParsePoses::PubPath(const ros::WallTimerEvent& unused_timer_event)
 {
   if(gps_path_.poses.size() == 0)
     return;
-  path1_.header.frame_id = "map";
-  path2_.header.frame_id = "map";
-  gps_path_.header.frame_id = "map";
+  path1_.header.frame_id = "odom";
+  path2_.header.frame_id = "odom";
+  gps_path_.header.frame_id = "odom";
   gps_path_.header.stamp = ros::Time::now();
   path1_.header.stamp = ros::Time::now();
   path2_.header.stamp = ros::Time::now();
   path1_pub_.publish(path1_);
   path2_pub_.publish(path2_);
   gps_path_pub_.publish(gps_path_);
+  if(cloud1_.height * cloud1_.width > 0){
+    cloud1_.header.stamp = ros::Time::now();
+    cloud1_pub_.publish(cloud1_);
+    
+    cloud2_.header.stamp = ros::Time::now();
+    cloud2_pub_.publish(cloud2_);
+  }
+}
+
+void ParsePoses::ParsePbstream(const string& pbstream_path,const std::string& pbstream2_path)
+{
+  io::ProtoStreamReader reader(pbstream_path);
+  SerializedData proto;
+  while (reader.ReadProto(&proto))
+  {
+    switch (proto.data_case()) {
+      case SerializedData::kNode: {
+        mapping::TrajectoryNode::Data data = mapping::FromProto(proto.node().node_data()) ;
+        ros::Time time = cartographer_ros::ToRos(data.time);
+        cloud1_with_time_[time] = data.high_resolution_point_cloud;
+        break;
+      }
+    }
+  }
+  
+  io::ProtoStreamReader reader2(pbstream2_path);
+  SerializedData proto2;
+  while (reader2.ReadProto(&proto2))
+  {
+    switch (proto2.data_case()) {
+      case SerializedData::kNode: {
+        mapping::TrajectoryNode::Data data = mapping::FromProto(proto2.node().node_data()) ;
+        ros::Time time = cartographer_ros::ToRos(data.time);
+        cloud2_with_time_[time] = data.high_resolution_point_cloud;
+        break;
+      }
+    }
+  }
 }
 
 int main(int argc, char **argv)

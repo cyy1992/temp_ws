@@ -22,6 +22,8 @@
 #include <iostream>
 #include <ros/ros.h>
 #include <glog/logging.h>
+#include <cartographer/mapping/trajectory_node.h>
+
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <gps_common/GPSFix.h>
@@ -34,14 +36,13 @@
 #include <std_srvs/Empty.h>
 #include <nav_msgs/Path.h>
 
-#include <cartographer/mapping/trajectory_node.h>
 class PubGpsPath
 {
 public:
   struct Rigid3d
   {
-    Eigen::Vector3d t;
     Eigen::Quaterniond q;
+    Eigen::Vector3d t;
     Rigid3d():q(Eigen::Quaterniond::Identity()),t(Eigen::Vector3d(0,0,0)){}
     Rigid3d(Eigen::Quaterniond q1,Eigen::Vector3d t1):q(q1),t(t1){}
     //     Rigid3d():t(Eigen::Vector3d(0,0,0)),q(Eigen::Quaterniond(1,0,0,0)){};
@@ -81,6 +82,13 @@ public:
       p3 = this->q * p2 + this->t;
       return p3;
     }
+    
+    Eigen::Vector3f operator*(const Eigen::Vector3f& p2)
+    {
+      Eigen::Vector3f p3;
+      p3 = this->q.cast<float>() * p2 + this->t.cast<float>();
+      return p3;
+    }
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
 public:
@@ -103,6 +111,7 @@ private:
   std::vector<ros::ServiceServer> service_servers_; 
   ros::Publisher path_pub_;  
   ros::Subscriber gps_sub_;
+  ros::Subscriber lidar_sub_;
   
   Rigid3d ecef_in_map_;
   Rigid3d ecef_to_local_frame_,gps_to_base_init_,fix_in_map_;
@@ -138,6 +147,7 @@ private:
   std::queue<ros::Time> times_;
   
   std::queue<ros::Time> cloud_times_;
+  std::map<ros::Time, cartographer::sensor::PointCloud> origin_cloud_with_time_;
   std::map<ros::Time, cartographer::mapping::TrajectoryNode::Data> cloud_with_time_;
   
   std::string odom_frame_;

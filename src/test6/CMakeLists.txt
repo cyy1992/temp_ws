@@ -1,10 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(test6)
-# add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
-# add_compile_options(-std=c++14)
-# add_definitions(-std=c++11)
-# SET(CMAKE_BUILD_TYPE "Debug")
-# SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
 add_definitions(-std=c++11)
 SET(CMAKE_BUILD_TYPE "Release") 
 # SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -DDEBUG -ggdb")
@@ -47,8 +42,6 @@ find_package(PCL REQUIRED COMPONENTS common io console)
 find_package(yaml-cpp REQUIRED)
 find_package(csm_eigen REQUIRED)
 
-PKG_SEARCH_MODULE(CAIRO REQUIRED cairo>=1.12.16)
-
 add_service_files(
   DIRECTORY srv
   FILES
@@ -63,7 +56,6 @@ generate_messages(
 catkin_package(
 CATKIN_DEPENDS
     ${PACKAGE_DEPENDENCIES}
-    INCLUDE_DIRS "."
 )
 
 include_directories(include
@@ -78,7 +70,6 @@ include_directories(include
   ${csm_eigen_INCLUDE_DIRS}
 #   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
-file(GLOB_RECURSE ALL_SRCS "*.cc" "*.h")
 # include_directories(
 # BEFORE ${GLOG_INCLUDE_DIRS})
 # include_directories(
@@ -130,10 +121,10 @@ add_executable(calib_gps src/calib_gps.cpp)
 target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(pub_gps_path src/pub_gps_path.cpp)
-target_link_libraries(pub_gps_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(parse_poses src/parse_poses.cpp)
-target_link_libraries(parse_poses  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(parse_poses  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
 add_executable(test6 src/test6_main.cpp)
