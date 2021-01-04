@@ -44,9 +44,9 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
                                           &PubGpsPath::handleGps, this);
   lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/pointcloud_front", 3,
                                           &PubGpsPath::handlePointcloud, this);
-  odom_frame_ = "map";
-  base_frame_ = "base_link";
-  lidar_frame_ = "base_link";
+  odom_frame_ = "odom";
+  base_frame_ = "base_footprint";
+  lidar_frame_ = "lidar_link";
 }
 
 PubGpsPath::~PubGpsPath()
@@ -64,9 +64,35 @@ void PubGpsPath::setParam()
   ::ros::param::get("/jzhw/calib/gps/default/px",gps2base_x);
   ::ros::param::get("/jzhw/calib/gps/default/py",gps2base_y);
   ::ros::param::get("/jzhw/calib/gps/default/yaw",gps2base_yaw);
-  
-  gps2base_.t = Eigen::Vector3d(gps2base_x,gps2base_y,0);
-  gps2base_.q = Eigen::Quaterniond(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
+  int k = 0;
+  ros::Rate rate(1);
+  while(1){
+    try{
+      auto gps2base_tf = tf_buffer_.lookupTransform("base_footprint", "gnss_link", ros::Time(0));
+      Eigen::Vector3d t(gps2base_tf.transform.translation.x, 
+                                    gps2base_tf.transform.translation.y,
+                                    gps2base_tf.transform.translation.z);
+      
+      Eigen::Quaterniond q(gps2base_tf.transform.rotation.w,
+                                      gps2base_tf.transform.rotation.x,
+                                      gps2base_tf.transform.rotation.y,
+                                      gps2base_tf.transform.rotation.z);
+      gps2base_ = Rigid3d(q,t);
+      break;
+    }
+    catch (const tf2::TransformException& ex){
+      if(k++ > 20){
+        LOG(WARNING) << "Can not get gps2base tf!";
+        Eigen::Vector3d t(gps2base_x,gps2base_y,0);
+        Eigen::Quaterniond q(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
+        gps2base_ = Rigid3d(q,t);
+        break;
+      }
+      rate.sleep();
+    }
+  }
+//   gps2base_.t = Eigen::Vector3d(gps2base_x,gps2base_y,0);
+//   gps2base_.q = Eigen::Quaterniond(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
   std::cout <<"\033[36m gps2base_:" << gps2base_ <<"\033[0m" <<std::endl;
   
   //get fix_in_map_, ecef_in_map_

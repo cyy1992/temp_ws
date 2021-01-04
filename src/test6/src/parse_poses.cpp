@@ -31,14 +31,14 @@ using mapping::proto::SerializedData;
 
 ParsePoses::ParsePoses(const ros::NodeHandle& n):nh_(n)
 {
-  path1_pub_ = nh_.advertise<nav_msgs::Path>("/ParsePoses/path1",1);
-  path2_pub_ = nh_.advertise<nav_msgs::Path>("/ParsePoses/path2",1);
-  gps_path_pub_ = nh_.advertise<nav_msgs::Path>("/ParsePoses/gps_path",1);
-  cloud1_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/ParsePoses/submap1",1);
-  cloud2_pub_  = nh_.advertise<sensor_msgs::PointCloud2>("/ParsePoses/submap2",1);
+  path1_pub_ = nh_.advertise<nav_msgs::Path>("/parse_poses/path1",1);
+  path2_pub_ = nh_.advertise<nav_msgs::Path>("/parse_poses/path2",1);
+  gps_path_pub_ = nh_.advertise<nav_msgs::Path>("/parse_poses/gps_path",1);
+  cloud1_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/parse_poses/submap1",1);
+  cloud2_pub_  = nh_.advertise<sensor_msgs::PointCloud2>("/parse_poses/submap2",1);
   ReadData("/home/cyy/1.txt","/home/cyy/2.txt" );
-  srvs_.push_back(nh_.advertiseService("setStep",&ParsePoses::SetStep, this));
-  srvs_.push_back(nh_.advertiseService("setSubmapShowId",&ParsePoses::SetSubmapShowId, this));
+  srvs_.push_back(nh_.advertiseService("/parse_poses/set_step",&ParsePoses::SetStep, this));
+  srvs_.push_back(nh_.advertiseService("/parse_poses/set_submap_show_id",&ParsePoses::SetSubmapShowId, this));
   timer_pub_ = nh_.createWallTimer(ros::WallDuration(1), &ParsePoses::PubPath,this);
   
 //   string pbstream1 = "/home/cyy/11.pbstream";
@@ -69,7 +69,7 @@ void ParsePoses::ReadData(const string& file1, const string& file2)
       Rigid3d gps_pose(q_temp,t);
       
       fi1 >> t(0) >> t(1) >> t(2);
-      fi1 >> q[0] >> q[1] >> q[2] >>q[3];
+      fi1 >> q[0] >> q[1] >> q[2] >> q[3];
       Eigen::Quaterniond q_temp2(q[0] , q[1] , q[2] ,q[3]);
       Rigid3d lidar_pose(q_temp2,t);
       poses_with_time_[time].push_back(gps_pose);
@@ -102,11 +102,12 @@ void ParsePoses::ReadData(const string& file1, const string& file2)
   
   for(auto  it : poses_with_time_)
   {
-    if(it.second.size() < 3)
+    if(it.second.size() != 3)
     {
       poses_with_time_.erase(poses_with_time_.find(it.first));
     }
   }
+//   poses_with_time_.erase(poses_with_time_.rbegin());
   cout << poses_with_time_.size()<<endl;
   fi2.close();
 }
@@ -153,10 +154,11 @@ bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool:
 
   Rigid3d gps_pose_std = poses_with_time_.begin()->second[0];
   Rigid3d odom1_pose_std = poses_with_time_.begin()->second[1];
-  Rigid3d odom2_pose_std = lidar2base * poses_with_time_.begin()->second[2] * lidar2base.inverse();
+  Rigid3d odom2_pose_std = poses_with_time_.begin()->second[2];
   path1_.poses.clear();
   path2_.poses.clear();
   gps_path_.poses.clear();
+  
   long last_time = poses_with_time_.begin()->first;
   auto temp111 = cloud1_with_time_;
   auto temp222 = cloud2_with_time_;
@@ -173,14 +175,20 @@ bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool:
 //   }
   double last_gps_time = last_time * 1.0 / 1000.0;
   int kk = 0;
+  int size_of_poses = poses_with_time_.size();
+  path1_.poses.reserve(size_of_poses);
+  path2_.poses.reserve(size_of_poses);
+  std::vector<Eigen::Vector3d> relative_poses1,relative_poses2;
+  relative_poses1.reserve(size_of_poses);
+  relative_poses2.reserve(size_of_poses);
   for(auto it : poses_with_time_)
   {
     k++;
-    if(k >= step_num || (it.first - last_time) > 5000)
+    if(k >= step_num || (it.first - last_time) > 50000)
     {
       gps_pose_std = it.second[0];
       odom1_pose_std = it.second[1];
-      odom2_pose_std = lidar2base * it.second[2] * lidar2base.inverse();
+      odom2_pose_std = it.second[2];
       k = 0;
       last_time = it.first;
       last_gps_time = last_time * 1.0 / 1000.0;
@@ -197,36 +205,43 @@ bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool:
       cartographer::sensor::PointCloud().swap(cloud2);
     }
     double cur_gps_time = it.first * 1.0 / 1000.0;
-    if(temp111.size() > 0){
-      while(last_gps_time - cloud_with_time_it->first.toSec() > 0)
-      {
-        cloud_with_time_it = temp111.erase(cloud_with_time_it);
-      }
-      while(cur_gps_time - cloud_with_time_it->first.toSec() > 0)
-      {
-        cloud1.insert(cloud1.end(),cloud_with_time_it->second.begin(),cloud_with_time_it->second.end());
-        cloud_with_time_it = temp111.erase(cloud_with_time_it);
-      }
-    }
-    
-    if(temp222.size() > 0){
-      while(last_gps_time - cloud2_with_time_it->first.toSec() > 0)
-      {
-        cloud2_with_time_it = temp222.erase(cloud2_with_time_it);
-      }
-      while(cur_gps_time - cloud2_with_time_it->first.toSec() > 0)
-      {
-        cloud2.insert(cloud2.end(),cloud2_with_time_it->second.begin(),cloud2_with_time_it->second.end());
-        cloud2_with_time_it = temp222.erase(cloud2_with_time_it);
-      }
-    }
+//     if(temp111.size() > 0){
+//       while(last_gps_time - cloud_with_time_it->first.toSec() > 0)
+//       {
+//         cloud_with_time_it = temp111.erase(cloud_with_time_it);
+//       }
+//       while(cur_gps_time - cloud_with_time_it->first.toSec() > 0)
+//       {
+//         cloud1.insert(cloud1.end(),cloud_with_time_it->second.begin(),cloud_with_time_it->second.end());
+//         cloud_with_time_it = temp111.erase(cloud_with_time_it);
+//       }
+//     }
+//     
+//     if(temp222.size() > 0){
+//       while(last_gps_time - cloud2_with_time_it->first.toSec() > 0)
+//       {
+//         cloud2_with_time_it = temp222.erase(cloud2_with_time_it);
+//       }
+//       while(cur_gps_time - cloud2_with_time_it->first.toSec() > 0)
+//       {
+//         cloud2.insert(cloud2.end(),cloud2_with_time_it->second.begin(),cloud2_with_time_it->second.end());
+//         cloud2_with_time_it = temp222.erase(cloud2_with_time_it);
+//       }
+//     }
     
     Rigid3d pose1 = gps_pose_std * odom1_pose_std.inverse() * it.second[1];
-    Rigid3d pose2 = gps_pose_std * odom2_pose_std.inverse() *lidar2base * it.second[2] * lidar2base.inverse();
+    Rigid3d pose2 = gps_pose_std * odom2_pose_std.inverse() * it.second[2];
     geometry_msgs::PoseStamped temp_pose1,temp_pose2,temp_pose3;
 //     temp_pose1.header.frame_id = "base_footprint";
 //     temp_pose2.header.frame_id = "base_footprint";
 //     temp_pose3.header.frame_id = "base_footprint";
+    
+    Rigid3d relative_pose1 = pose1.inverse() * it.second[0];
+    Rigid3d relative_pose2 = pose2.inverse() * it.second[0];
+    relative_pose1.t = Eigen::Vector3d(fabs(relative_pose1.t(0)),fabs(relative_pose1.t(1)),fabs(relative_pose1.t(2)) );
+    relative_pose2.t = Eigen::Vector3d(fabs(relative_pose2.t(0)),fabs(relative_pose2.t(1)),fabs(relative_pose2.t(2)) );
+    relative_poses1.push_back(relative_pose1.t);
+    relative_poses2.push_back(relative_pose2.t);
     temp_pose1.pose.position.x = pose1.t(0);
     temp_pose1.pose.position.y = pose1.t(1);
     temp_pose1.pose.position.z = pose1.t(2);
@@ -254,13 +269,37 @@ bool ParsePoses::SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool:
     path1_.poses.push_back(temp_pose1);
     path2_.poses.push_back(temp_pose2);
     gps_path_.poses.push_back(temp_pose3);
+//     cout <<k << std::endl;
   }
+  
+  
+  Eigen::Vector3d sum1 = std::accumulate(std::begin(relative_poses1), std::end(relative_poses1),Eigen::Vector3d(0,0,0));
+  Eigen::Vector3d mean1 = sum1 / (relative_poses1.size() -1);
+  Eigen::Vector3d accum1(0,0,0);
+  std::for_each (std::begin(relative_poses1), std::end(relative_poses1), [&](const Eigen::Vector3d d) {
+    accum1(0)  += (d-mean1).x()*(d-mean1).x();
+    accum1(1)  += (d-mean1).y()*(d-mean1).y();
+    accum1(2)  += (d-mean1).z()*(d-mean1).z();
+  });
+  
+  Eigen::Vector3d sum2 = std::accumulate(std::begin(relative_poses2), std::end(relative_poses2),Eigen::Vector3d(0,0,0));
+  Eigen::Vector3d mean2 = sum2 / (relative_poses2.size() - 1);
+  Eigen::Vector3d accum2(0,0,0);
+  std::for_each (std::begin(relative_poses2), std::end(relative_poses2), [&](const Eigen::Vector3d d) {
+    accum2(0)  += (d-mean2).x()*(d-mean2).x();
+    accum2(1)  += (d-mean2).y()*(d-mean2).y();
+    accum2(2)  += (d-mean2).z()*(d-mean2).z();
+  });
+  
+  
+  cout << "mean1: " << mean1.transpose() << "\t accum1: " << accum1.transpose() <<endl;
+  cout << "mean2: " << mean2.transpose() << "\t accum2: " << accum2.transpose() <<endl;
   clouds1_.push_back(cloud1);
   clouds2_.push_back(cloud2);
 //   
   response.success = true;
-  cout << kk <<", " <<clouds1_.size() <<endl;
-  cout << kk <<", " <<clouds2_.size() <<endl;
+//   cout << kk <<", " <<clouds1_.size() <<endl;
+//   cout << kk <<", " <<clouds2_.size() <<endl;
 //   cloud1_ = ToPointCloud2Msg(sensor::VoxelFilter(0.5).Filter(cloud1));
   return true;
 }
