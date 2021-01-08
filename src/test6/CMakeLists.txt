@@ -89,18 +89,14 @@ ${libpointmatcher_LIBRARIES}
 ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
 
-# add_executable(test6 src/test6_main.cpp)
-# target_link_libraries(test6 ${catkin_LIBRARIES})
-
-
 # add_executable(detect_tags src/detect_tag.cpp)
 # target_link_libraries(detect_tags ${catkin_LIBRARIES}  ${OpenCV_LIBRARIES} apriltag_mit)
 
 # add_executable(point_matcher_mapping src/point_matcher_mapping.cpp)
 # target_link_libraries(point_matcher_mapping  ${catkin_LIBRARIES} cartographer cartographer_ros ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(pbstream_convertor src/pbstream_convertor.cpp)
-target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(pbstream_convertor src/pbstream_convertor.cpp)
+# target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 # 
 add_executable(merge_submap src/merge_submap_from_nodes.cpp)
 target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -126,12 +122,12 @@ target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_L
 add_executable(pub_gps_path src/pub_gps_path.cpp)
 target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(parse_poses src/parse_poses.cpp)
-target_link_libraries(parse_poses  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(parse_poses src/parse_poses.cpp)
+# target_link_libraries(parse_poses  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
-add_executable(generate_pbstream_from_pcd src/generate_pbstream_from_pcd.cpp)
-target_link_libraries(generate_pbstream_from_pcd cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
+# add_executable(generate_pbstream_from_pcd src/generate_pbstream_from_pcd.cpp)
+# target_link_libraries(generate_pbstream_from_pcd cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
 add_executable(test6 src/test6_main.cpp)
 target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
@@ -154,9 +150,9 @@ target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 # add_executable(read_json_and_change_poses_node src/read_json_and_change_poses.cpp)
 # target_link_libraries(read_json_and_change_poses_node -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
-add_executable(depth_color_registration_node src/depth_color_registration.cpp src/depth2colorAlign.cpp)
-target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
-
+# add_executable(depth_color_registration_node src/depth_color_registration.cpp src/depth2colorAlign.cpp)
+# target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# 
 add_executable(point_cloud_trans src/point_cloud_trans.cpp)
 target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
@@ -189,7 +185,7 @@ target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pbstream_convertor parse_poses tf_to_path pub_gps_path
+install(TARGETS  test6 point_cloud_trans
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -2,16 +2,68 @@
 #include<opencv2/opencv.hpp>
 #include<iostream>
 #include <string>
+#include <chrono>
+#include <ros/ros.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <gps_common/GPSFix.h>
 using namespace cv;
 using namespace std;
-int main()
+using namespace std::chrono;
+
+void fillVector(vector<float>& temp)
 {
-//     Mat image=imread("/home/cyy/map/2dtest3/bool_image.png");
-//     if(image.empty())
-//     {
-//         cout<<"image is empty"<<endl;
-        return 0;
-    }
+  for(int i =0; i < 100000; i ++)
+    temp.push_back(1.222 + i);
+}
+
+ros::Subscriber gps_sub_;
+ros::Publisher navsat_pub_;
+void HandleGps(const gps_common::GPSFix::ConstPtr& msg)
+{
+  sensor_msgs::NavSatFix fix_msg;
+  fix_msg.header = msg->header;
+  fix_msg.latitude = msg->latitude;
+  fix_msg.longitude = msg->longitude;
+  fix_msg.altitude = msg->altitude;
+  fix_msg.position_covariance_type = 0;
+  fix_msg.header.frame_id = "fix_link";
+  navsat_pub_.publish(fix_msg);
+  
+}
+int main(int argc, char** argv)
+{
+  ros::init(argc,argv,"test66");
+  ros::NodeHandle n;
+  navsat_pub_ = n.advertise<sensor_msgs::NavSatFix>("/jzhw/navsat", 1);
+  gps_sub_ = n.subscribe("/jzhw/gps/fix", 5, HandleGps);
+  ros::spin();
+  return 0;
+}
+//   vector<float> temp1, temp2, temp3;
+//   steady_clock::time_point t1 = steady_clock::now();
+//   fillVector(temp1);
+//   steady_clock::time_point t2 = steady_clock::now();
+//   duration<double> time_span = 
+//       duration_cast<duration<double>>(t2 - t1);
+//   cout << temp1.capacity()<<endl;
+//   temp2 = temp1;    
+//   temp1.reserve(200000);
+//   cout << temp1.capacity()<<endl;
+//   steady_clock::time_point t3 = steady_clock::now();
+//   fillVector(temp1);
+//   steady_clock::time_point t4 = steady_clock::now();
+//   
+//   duration<double> time_span2 = 
+//       duration_cast<duration<double>>(t4 - t3);
+//   
+//   steady_clock::time_point t5 = steady_clock::now();
+//   temp2.insert(temp2.end(), temp2.begin(), temp2.end());
+//   steady_clock::time_point t6 = steady_clock::now();
+//   
+//   duration<double> time_span3 = 
+//       duration_cast<duration<double>>(t6 - t5);
+//   cout << time_span.count() <<", " << time_span2.count() <<", " << time_span3.count()<<endl;
+
 //     Mat mask = Mat(Size(image.cols, image.rows),CV_8UC1,Scalar(255)); 
 //     Point p1 = { 25, 60 };  Point p2 = { 50, 110 };  Point p4 = { 100, 60 }; Point p3 = { 100, 110 }; /*Point p5 = { 50, 10 };*/
 //     vector<Point> contour;

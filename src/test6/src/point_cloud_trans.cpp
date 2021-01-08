@@ -16,8 +16,10 @@
  */
 
 #include "point_cloud_trans.h"
+#include <tf2/convert.h>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 
-PointcloudTrans::PointcloudTrans(const ros::NodeHandle& n):nh_(n)
+PointcloudTrans::PointcloudTrans(const ros::NodeHandle& n):nh_(n),tfBuffer_(ros::Duration(20.)),tfListener_(tfBuffer_)
 {
   cloud1_sub_ = nh_.subscribe("/pointcloud_front",10, &PointcloudTrans::HandleCloudFront,this);
   cloud2_sub_ = nh_.subscribe("/pointcloud_back",10, &PointcloudTrans::HandleCloudBack,this);
@@ -34,9 +36,22 @@ PointcloudTrans::~PointcloudTrans()
   
 void PointcloudTrans::HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
+  sensor_msgs::PointCloud2 point_cloud_origin;
   sensor_msgs::PointCloud2 point_cloud;
-  point_cloud = (*msg);
-  int range_size = point_cloud.width * point_cloud.height;
+  point_cloud_origin = (*msg);
+  int range_size = point_cloud_origin.width * point_cloud_origin.height;
+  geometry_msgs::TransformStamped transformStamped;
+  try {
+      transformStamped = tfBuffer_.lookupTransform("base_footprint", msg->header.frame_id,
+              ros::Time(0));
+      tf2::doTransform(point_cloud_origin, point_cloud, transformStamped);
+
+//          pcl_ros::transformPointCloud("robotarm", cloud_in, cloud_out, tfListener);
+
+  } catch (tf2::TransformException &ex) {
+    return;
+  }
+
   if(range_size > 0)
   {
     sensor_msgs::PointCloud2Iterator<float> iter_x0(point_cloud, "x");
@@ -48,8 +63,9 @@ void PointcloudTrans::HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr&
 //      sensor_msgs::PointCloud points;
 //      points.header = msg->header;
     sensor_msgs::PointCloud2 cloud_msg;
-    cloud_msg.header = msg->header;
+//     cloud_msg.header = msg->header;
     cloud_msg.header.stamp = ros::Time::now();
+    cloud_msg.header.frame_id = "base_footprint";
     cloud_msg.height = 1;
     cloud_msg.width = range_size;
 
@@ -69,7 +85,10 @@ void PointcloudTrans::HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr&
       *iter_x1 = *iter_x0;
       *iter_y1 = *iter_y0;
       *iter_z1 = *iter_z0;
-      *iter_intensity1 = *iter_intensity0;
+      if(*iter_z0 > -0.02 && *iter_z0 < 0.02 )
+        *iter_intensity1 = 500;
+      else 
+        *iter_intensity1 = 0.;
       ++iter_x0;
       ++iter_y0;
       ++iter_z0;
@@ -87,8 +106,21 @@ void PointcloudTrans::HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr&
 
 void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
-    sensor_msgs::PointCloud2 point_cloud;
-  point_cloud = (*msg);
+  sensor_msgs::PointCloud2 point_cloud_origin;
+  sensor_msgs::PointCloud2 point_cloud;
+  point_cloud_origin = (*msg);
+  
+  geometry_msgs::TransformStamped transformStamped;
+  try {
+      transformStamped = tfBuffer_.lookupTransform("base_footprint", msg->header.frame_id,
+              ros::Time(0));
+      tf2::doTransform(point_cloud_origin, point_cloud, transformStamped);
+
+//          pcl_ros::transformPointCloud("robotarm", cloud_in, cloud_out, tfListener);
+
+  } catch (tf2::TransformException &ex) {
+    return;
+  }
   int range_size = point_cloud.width * point_cloud.height;
   if(range_size > 0)
   {
@@ -101,8 +133,9 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
 //      sensor_msgs::PointCloud points;
 //      points.header = msg->header;
     sensor_msgs::PointCloud2 cloud_msg;
-    cloud_msg.header = msg->header;
+//     cloud_msg.header = msg->header;
     cloud_msg.header.stamp = ros::Time::now();
+    cloud_msg.header.frame_id = "base_footprint";
     cloud_msg.height = 1;
     cloud_msg.width = range_size;
 
@@ -122,7 +155,11 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
       *iter_x1 = *iter_x0;
       *iter_y1 = *iter_y0;
       *iter_z1 = *iter_z0;
-      *iter_intensity1 = *iter_intensity0;
+      if(*iter_z0 > -0.02 && *iter_z0 < 0.02 )
+        *iter_intensity1 = 500;
+      else 
+        *iter_intensity1 = 0.;
+//       *iter_intensity1 = *iter_intensity0;
       ++iter_x0;
       ++iter_y0;
       ++iter_z0;
