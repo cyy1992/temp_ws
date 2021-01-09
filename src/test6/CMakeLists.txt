@@ -156,8 +156,8 @@ target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 add_executable(point_cloud_trans src/point_cloud_trans.cpp)
 target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
-# add_executable(crop_points src/crop_points.cpp)
-# target_link_libraries(crop_points ${catkin_LIBRARIES})
+add_executable(crop_points src/crop_points.cpp)
+target_link_libraries(crop_points ${catkin_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(string_operator src/string_operator.cpp)
@@ -185,7 +185,7 @@ target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  test6 point_cloud_trans
+install(TARGETS  test6 point_cloud_trans crop_points
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

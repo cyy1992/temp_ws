@@ -53,7 +53,9 @@ private:
   tf2_ros::TransformListener tfListener_;
   
   ros::Subscriber cloud1_sub_,cloud2_sub_;
-  ros::Publisher cloud1_pub_,cloud2_pub_;
+  ros::Publisher cloud1_pub_,cloud2_pub_,cloud_all_pub_;
+  geometry_msgs::TransformStamped lidar2base_tf_;
+  std::vector<Eigen::Vector3d> cloud_points_; 
 };
 
 #endif // POINTCLOUDTRANS_H
