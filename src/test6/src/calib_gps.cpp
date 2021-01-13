@@ -27,7 +27,7 @@ constexpr double RadToDeg(double rad) { return 180. * rad / M_PI; }
 
 CalibGps::CalibGps(const ros::NodeHandle& n):nh_(n)
 {
-  gps_sub_ = nh_.subscribe("/jzhw/gps/fix",10,&CalibGps::handleGps,this);
+  gps_sub_ = nh_.subscribe("/jzhw/gps/front/fix",10,&CalibGps::handleGps,this);
   state_srv_ = nh_.advertiseService("/gps/update_state",&CalibGps::updateState,this);
   path_pub_ = nh_.advertise<nav_msgs::Path>("calib_gps_path",1);
   initialized_ = false;

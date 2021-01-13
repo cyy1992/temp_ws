@@ -38,9 +38,14 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
 class PointcloudTrans
 {
+typedef pcl::PointXYZ PointType;
 public:
   PointcloudTrans(const ros::NodeHandle& n);
   ~PointcloudTrans();
@@ -56,6 +61,8 @@ private:
   ros::Publisher cloud1_pub_,cloud2_pub_,cloud_all_pub_;
   geometry_msgs::TransformStamped lidar2base_tf_;
   std::vector<Eigen::Vector3d> cloud_points_; 
+  pcl::VoxelGrid<PointType> down_sample_;
+  pcl::PointCloud<PointType>::Ptr points_;
 };
 
 #endif // POINTCLOUDTRANS_H

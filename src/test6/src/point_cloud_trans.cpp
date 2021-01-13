@@ -41,6 +41,8 @@ PointcloudTrans::PointcloudTrans(const ros::NodeHandle& n):nh_(n),tfBuffer_(ros:
 // //       rate.sleep();
 // //     }
 //   }
+  down_sample_.setLeafSize(0.02, 0.02, 0.02);
+  points_.reset(new pcl::PointCloud<PointType>());
 }
 
 PointcloudTrans::~PointcloudTrans()
@@ -162,7 +164,7 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
     sensor_msgs::PointCloud2 cloud_msg;
 //     cloud_msg.header = msg->header;
     cloud_msg.header.stamp = ros::Time::now();
-    cloud_msg.header.frame_id = "base_footprint";
+    cloud_msg.header.frame_id = "base_footprint2";
     cloud_msg.height = 1;
     cloud_msg.width = range_size;
 
@@ -179,12 +181,18 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
     sensor_msgs::PointCloud2Iterator<float> iter_intensity1(cloud_msg, "intensity");
     vector<Eigen::Vector3d> temp_points;
     temp_points.reserve(range_size);
+    float ref_x,ref_y,ref_z;
+    ref_x = -11.0;ref_y = 0; ref_z = 1.5;
+    float size_x,size_y,size_z;
+    size_x = 4.;
+    size_y = 3.5;
+    size_z = 1.5;
     for(int i = 0; i < range_size; i++)
     {
       float temp_x = *iter_x_base;
 //       if(i < 10 )
 //         cout << temp_x <<endl;
-      if(temp_x > -13){
+      if(temp_x > -10){
         ++iter_x0;
         ++iter_y0;
         ++iter_z0;
@@ -202,15 +210,26 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
 //         cout << temp_x <<endl;
         continue;
       }
-      *iter_x1 = *iter_x0;
-      *iter_y1 = *iter_y0;
-      *iter_z1 = *iter_z0;
+      *iter_x1 = *iter_x_base;
+      *iter_y1 = *iter_y_base;
+      *iter_z1 = *iter_z_base;
       if(*iter_z0 > -0.02 && *iter_z0 < 0.02 )
         *iter_intensity1 = 500;
       else 
         *iter_intensity1 = 0.;
 //       *iter_intensity1 = *iter_intensity0;
-      temp_points.push_back(Eigen::Vector3d(*iter_x1, *iter_y1, *iter_z1));
+//       temp_points.push_back(Eigen::Vector3d(*iter_x0, *iter_y0, *iter_z0));
+      
+      if((*iter_x0) > (ref_x - size_x )&& (*iter_x0) <  (ref_x + size_x)&&
+          (*iter_y0) > (ref_y - size_y)&& (*iter_y0) < (ref_y + size_y) &&
+          (*iter_z0) > (ref_z - size_z )&& (*iter_z0) < (ref_z + size_z))
+      {
+        PointType p;
+        p.x = *iter_x0;
+        p.y = *iter_y0;
+        p.z = *iter_z0;
+        points_->points.push_back(p);
+      }
       ++iter_x0;
       ++iter_y0;
       ++iter_z0;
@@ -226,40 +245,54 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
          ++iter_z_base;
         ++iter_i_base;
     }
-    cloud_msg.header.frame_id = "odom1";
+//     cloud_msg.header.frame_id = "odom1";
     cloud_msg.header.stamp = cur_time;
     cloud2_pub_.publish(cloud_msg);
     
     static int kk = 0;
     
-    cloud_points_.insert(cloud_points_.end(), temp_points.begin(), temp_points.end());
-    if(kk%20 == 0)
+//     cloud_points_.insert(cloud_points_.end(), temp_points.begin(), temp_points.end());
+    if(kk%2 == 0)
     {
       sensor_msgs::PointCloud2 all_cloud_msg;
+      
+//       all_cloud_msg.height = 1;
+//       all_cloud_msg.width = cloud_points_.size();
+// 
+//       sensor_msgs::PointCloud2Modifier modifier2(all_cloud_msg);
+//       modifier2.setPointCloud2Fields(3,
+//                                     "x", 1, sensor_msgs::PointField::FLOAT32,
+//                                     "y", 1, sensor_msgs::PointField::FLOAT32, 
+//                                     "z", 1, sensor_msgs::PointField::FLOAT32);
+//       modifier2.resize(cloud_points_.size());
+//       sensor_msgs::PointCloud2Iterator<float> iter_x1(all_cloud_msg, "x");
+//       sensor_msgs::PointCloud2Iterator<float> iter_y1(all_cloud_msg, "y");
+//       sensor_msgs::PointCloud2Iterator<float> iter_z1(all_cloud_msg, "z");
+//       
+//       for(int j = 0; j < cloud_points_.size(); j++)
+//       {
+//         if(cloud_points_[j].x() > ref_x - size_x && cloud_points_[j].x() < ref_x + size_x&&
+//           cloud_points_[j].y() > ref_y - size_y && cloud_points_[j].y() < ref_y + size_y &&
+//           cloud_points_[j].z() > ref_z - size_z && cloud_points_[j].z() < ref_z + size_z){
+//         *iter_x1 = cloud_points_[j].x();
+//         *iter_y1 = cloud_points_[j].y();
+//         *iter_z1 = cloud_points_[j].z();
+//         
+//         ++iter_x1;
+//         ++iter_y1;
+//         ++iter_z1;
+//             
+//           }
+//       }
+//       
+// //       cloud_points_.clear();
+      pcl::PointCloud<PointType> down_sample_points;
+      
+      down_sample_.setInputCloud(points_);
+      down_sample_.filter(down_sample_points);
+      pcl::toROSMsg(down_sample_points, all_cloud_msg);
       all_cloud_msg.header.frame_id = "odom1";
       all_cloud_msg.header.stamp = cur_time;
-      all_cloud_msg.height = 1;
-      all_cloud_msg.width = cloud_points_.size();
-
-      sensor_msgs::PointCloud2Modifier modifier2(all_cloud_msg);
-      modifier2.setPointCloud2Fields(3,
-                                    "x", 1, sensor_msgs::PointField::FLOAT32,
-                                    "y", 1, sensor_msgs::PointField::FLOAT32, 
-                                    "z", 1, sensor_msgs::PointField::FLOAT32);
-      modifier2.resize(cloud_points_.size());
-      sensor_msgs::PointCloud2Iterator<float> iter_x1(all_cloud_msg, "x");
-      sensor_msgs::PointCloud2Iterator<float> iter_y1(all_cloud_msg, "y");
-      sensor_msgs::PointCloud2Iterator<float> iter_z1(all_cloud_msg, "z");
-      for(int j = 0; j < cloud_points_.size(); j++)
-      {
-        *iter_x1 = cloud_points_[j].x();
-        *iter_y1 = cloud_points_[j].y();
-        *iter_z1 = cloud_points_[j].z();
-        
-        ++iter_x1;
-        ++iter_y1;
-        ++iter_z1;
-      }
       cloud_all_pub_.publish(all_cloud_msg);
     }
     kk++;
