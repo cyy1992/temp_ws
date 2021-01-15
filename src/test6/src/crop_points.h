@@ -36,6 +36,8 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 typedef PointMatcher<float> PM;
 typedef PM::DataPoints DP;
 typedef PM::Matches Matches;
@@ -70,6 +72,7 @@ private:
   tf2_ros::TransformBroadcaster tf_broadcaster_;
   float max_x_,max_y_,max_z_;
   sensor_msgs::PointCloud2 cloud_msg;
+  pcl::PointCloud<pcl::PointXYZ> save_cloud_; 
 };
 
 #endif // CROPPOINTS_H

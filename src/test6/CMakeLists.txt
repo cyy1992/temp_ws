@@ -94,6 +94,8 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 
 # add_executable(point_matcher_mapping src/point_matcher_mapping.cpp)
 # target_link_libraries(point_matcher_mapping  ${catkin_LIBRARIES} cartographer cartographer_ros ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(pub_rtk_odom src/pub_rtk_odom.cpp)
+target_link_libraries(pub_rtk_odom  ${catkin_LIBRARIES} cartographer cartographer_ros)
 
 # add_executable(pbstream_convertor src/pbstream_convertor.cpp)
 # target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -153,14 +155,14 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 # add_executable(depth_color_registration_node src/depth_color_registration.cpp src/depth2colorAlign.cpp)
 # target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # 
-# add_executable(point_cloud_trans src/point_cloud_trans.cpp)
-# target_link_libraries(point_cloud_trans ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(point_cloud_trans src/point_cloud_trans.cpp)
+target_link_libraries(point_cloud_trans ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(pub_rtk_pose src/pub_rtk_pose.cpp)
 target_link_libraries(pub_rtk_pose ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-# add_executable(crop_points src/crop_points.cpp)
-# target_link_libraries(crop_points ${catkin_LIBRARIES})
+add_executable(crop_points src/crop_points.cpp)
+target_link_libraries(crop_points ${catkin_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(string_operator src/string_operator.cpp)
@@ -188,7 +190,7 @@ target_link_libraries(pub_rtk_pose ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  pub_rtk_pose
+install(TARGETS  pub_rtk_pose pub_rtk_odom point_cloud_trans crop_points
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

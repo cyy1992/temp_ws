@@ -19,13 +19,17 @@
 #include <pcl/visualization/vtk.h>
 #include <tf2/convert.h>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 
+#include <pcl/common/io.h>
+#include <pcl/impl/point_types.hpp>
 using namespace std;
 CropPoints::CropPoints(const ros::NodeHandle& n):nh_(n),tfBuffer_(ros::Duration(20.)),tfListener_(tfBuffer_)
 {
-  pointcloud_sub_ = nh_.subscribe("/pointcloud_back", 5, &CropPoints::handlePointcloud,this);
+  pointcloud_sub_ = nh_.subscribe("/merge_back1", 5, &CropPoints::handlePointcloud,this);
   wall_timer_ = nh_.createWallTimer(::ros::WallDuration(0.2), &CropPoints::pubCropPoints, this);
-  cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/crop_cloud",10);
+  cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/crop_cloud2",10);
   polygon_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("/crop_polygon",10);
   set_tf_srv_ = nh_.advertiseService("set_pose",&CropPoints::setTfPose,this);
   save_points_srv_ = nh_.advertiseService("save_points",&CropPoints::savePoints,this);
@@ -38,7 +42,7 @@ CropPoints::CropPoints(const ros::NodeHandle& n):nh_(n),tfBuffer_(ros::Duration(
   vertex_points_.push_back(Eigen::Vector3d(-4.9779,-2.1997,-0.76));
   vertex_points_.push_back(Eigen::Vector3d(-4.5411,-1.9095, -0.04));
   
-  stamped_transform_.header.frame_id = "base_footprint";
+  stamped_transform_.header.frame_id = "odom";
   stamped_transform_.child_frame_id = "crop_points_link";
   stamped_transform_.transform.translation.x = -3.3;
   stamped_transform_.transform.translation.y = -1.5;
@@ -59,26 +63,26 @@ void CropPoints::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
   sensor_msgs::PointCloud2 point_cloud;
   sensor_msgs::PointCloud2 origin_point_cloud;
-  origin_point_cloud = (*msg);
+  point_cloud = (*msg);
   ros::Rate rate(10);
   int k = 0; 
-  while(1){
-    geometry_msgs::TransformStamped transformStamped;
-    try {
-        transformStamped = tfBuffer_.lookupTransform("base_footprint", msg->header.frame_id,
-                ros::Time(0));
-        tf2::doTransform(origin_point_cloud, point_cloud, transformStamped);
-        break;
-  //          pcl_ros::transformPointCloud("robotarm", cloud_in, cloud_out, tfListener);
-
-    } catch (tf2::TransformException &ex) {
-      rate.sleep();
-      if(k++ > 10){
-        cout << "err: can not get tf" <<endl;
-        return;
-      }
-    }
-  }
+//   while(1){
+//     geometry_msgs::TransformStamped transformStamped;
+//     try {
+//         transformStamped = tfBuffer_.lookupTransform("base_footprint", msg->header.frame_id,
+//                 ros::Time(0));
+//         tf2::doTransform(origin_point_cloud, point_cloud, transformStamped);
+//         break;
+//   //          pcl_ros::transformPointCloud("robotarm", cloud_in, cloud_out, tfListener);
+// 
+//     } catch (tf2::TransformException &ex) {
+//       rate.sleep();
+//       if(k++ > 10){
+//         cout << "err: can not get tf" <<endl;
+//         return;
+//       }
+//     }
+//   }
   int range_size = point_cloud.width * point_cloud.height;
   if(!origin_points_.empty())
     return;
@@ -163,6 +167,11 @@ void CropPoints::pubCropPoints(const ::ros::WallTimerEvent& unused_timer_event)
       ++iter_x;
       ++iter_y;
       ++iter_z;
+      pcl::PointXYZ p;
+      p.x = point.x();
+      p.y = point.y();
+      p.z = point.z();
+      save_cloud_.points.push_back(p);
     }
     
   }
@@ -281,6 +290,8 @@ bool CropPoints::savePoints(std_srvs::Empty::Request& request, std_srvs::Empty::
 {
   std::unique_ptr<DP> cloud(new DP(PointMatcher_ros::rosMsgToPointMatcherCloud<float>(cloud_msg)));
   cloud->save("/home/cyy/finalMap.vtk");
+  
+  pcl::io::savePLYFile("/home/cyy/finalMap.ply", save_cloud_); 
   return true;
 }
 

@@ -41,7 +41,7 @@ PointcloudTrans::PointcloudTrans(const ros::NodeHandle& n):nh_(n),tfBuffer_(ros:
 // //       rate.sleep();
 // //     }
 //   }
-  down_sample_.setLeafSize(0.02, 0.02, 0.02);
+  down_sample_.setLeafSize(0.05, 0.05, 0.05);
   points_.reset(new pcl::PointCloud<PointType>());
 }
 
@@ -60,7 +60,7 @@ void PointcloudTrans::HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr&
   int range_size = point_cloud_origin.width * point_cloud_origin.height;
   geometry_msgs::TransformStamped transformStamped;
   try {
-      transformStamped = tfBuffer_.lookupTransform("odom1", "lidar_link2",
+      transformStamped = tfBuffer_.lookupTransform("odom", "lidar_link2",
               ros::Time(0));
       tf2::doTransform(point_cloud_origin, point_cloud, transformStamped);
 
@@ -127,13 +127,13 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
   sensor_msgs::PointCloud2 point_cloud_origin;
   sensor_msgs::PointCloud2 point_cloud,point_cloud_in_base;
   point_cloud_origin = (*msg);
-  ros::Time cur_time = msg->header.stamp + ros::Duration(1610179077.576312);
+  ros::Time cur_time = msg->header.stamp  + ros::Duration(1610179077.576312);;
   geometry_msgs::TransformStamped lidar2odom, lidar2base;
   ros::Rate rate(10);
   cout << cur_time  <<"," << ros::Time::now()<<endl;
   while(1){
     try {
-        lidar2odom = tfBuffer_.lookupTransform("odom1", msg->header.frame_id,
+        lidar2odom = tfBuffer_.lookupTransform("odom", msg->header.frame_id,
                 cur_time);
         lidar2base = tfBuffer_.lookupTransform("base_footprint", msg->header.frame_id,
                 cur_time);
@@ -156,7 +156,7 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
     sensor_msgs::PointCloud2Iterator<float> iter_x_base(point_cloud_in_base, "x");
     sensor_msgs::PointCloud2Iterator<float> iter_y_base(point_cloud_in_base, "y");
     sensor_msgs::PointCloud2Iterator<float> iter_z_base(point_cloud_in_base, "z");
-    sensor_msgs::PointCloud2Iterator<float> iter_i_base(point_cloud_in_base, "intensity");
+    sensor_msgs::PointCloud2Iterator<int> iter_i_base(point_cloud_in_base, "reflectivity");
 //       sensor_msgs::PointCloud2Iterator<int> iter_intensity(point_cloud, "intensity");
 //       sensor_msgs::PointCloud2Iterator<double> iter_intensity(point_cloud, "timestamp");
 //      sensor_msgs::PointCloud points;
@@ -164,7 +164,7 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
     sensor_msgs::PointCloud2 cloud_msg;
 //     cloud_msg.header = msg->header;
     cloud_msg.header.stamp = ros::Time::now();
-    cloud_msg.header.frame_id = "base_footprint2";
+    cloud_msg.header.frame_id = "base_footprint";
     cloud_msg.height = 1;
     cloud_msg.width = range_size;
 
@@ -182,17 +182,18 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
     vector<Eigen::Vector3d> temp_points;
     temp_points.reserve(range_size);
     float ref_x,ref_y,ref_z;
-    ref_x = -11.0;ref_y = 0; ref_z = 1.5;
+    ref_x = -12.50;ref_y = 0.8; ref_z = 1.5;
     float size_x,size_y,size_z;
-    size_x = 4.;
-    size_y = 3.5;
-    size_z = 1.5;
+    size_x = 2.5;
+    size_y = 2.5;
+    size_z = 2;
     for(int i = 0; i < range_size; i++)
     {
       float temp_x = *iter_x_base;
 //       if(i < 10 )
 //         cout << temp_x <<endl;
-      if(temp_x > -10){
+      if(temp_x > -10 || (*iter_i_base) < 300 ){
+//         cout << *iter_i_base <<endl;
         ++iter_x0;
         ++iter_y0;
         ++iter_z0;
@@ -230,6 +231,12 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
         p.z = *iter_z0;
         points_->points.push_back(p);
       }
+
+//       PointType p;
+//       p.x = *iter_x0;
+//       p.y = *iter_y0;
+//       p.z = *iter_z0;
+//       points_->points.push_back(p);
       ++iter_x0;
       ++iter_y0;
       ++iter_z0;
@@ -245,7 +252,7 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
          ++iter_z_base;
         ++iter_i_base;
     }
-//     cloud_msg.header.frame_id = "odom1";
+//     cloud_msg.header.frame_id = "odom";
     cloud_msg.header.stamp = cur_time;
     cloud2_pub_.publish(cloud_msg);
     
@@ -291,7 +298,7 @@ void PointcloudTrans::HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& 
       down_sample_.setInputCloud(points_);
       down_sample_.filter(down_sample_points);
       pcl::toROSMsg(down_sample_points, all_cloud_msg);
-      all_cloud_msg.header.frame_id = "odom1";
+      all_cloud_msg.header.frame_id = "odom";
       all_cloud_msg.header.stamp = cur_time;
       cloud_all_pub_.publish(all_cloud_msg);
     }
