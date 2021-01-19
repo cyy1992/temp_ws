@@ -6,18 +6,41 @@
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <gps_common/GPSFix.h>
+#include <visual_servo_msgs/Model3DPoseArray.h>
+#include <geometry_msgs/PolygonStamped.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
 using namespace cv;
 using namespace std;
 using namespace std::chrono;
+void fillVector(vector<float>& temp);
+void HandleGps(const gps_common::GPSFix::ConstPtr& msg);
+void setPolyGon();
+void HandleModelPose(const visual_servo_msgs::Model3DPoseArray::ConstPtr& msg);
+ros::Subscriber gps_sub_;
+ros::Subscriber model_sub_;
+ros::Publisher navsat_pub_,polygon_pub_;
+int main(int argc, char** argv)
+{
+  ros::init(argc,argv,"test66");
+  ros::NodeHandle n;
+  navsat_pub_ = n.advertise<sensor_msgs::NavSatFix>("/jzhw/navsat", 1);
+  polygon_pub_ = n.advertise<geometry_msgs::PolygonStamped>("/trailer_polygon", 1);
+  gps_sub_ = n.subscribe("/jzhw/gps/fix", 5, HandleGps);
+  model_sub_ = n.subscribe("/servo_guard/model_3d_pose", 5, HandleModelPose);
+  setPolyGon();
 
+  ros::spin();
+  return 0;
+}
 void fillVector(vector<float>& temp)
 {
   for(int i =0; i < 100000; i ++)
     temp.push_back(1.222 + i);
 }
 
-ros::Subscriber gps_sub_;
-ros::Publisher navsat_pub_;
+
 void HandleGps(const gps_common::GPSFix::ConstPtr& msg)
 {
   sensor_msgs::NavSatFix fix_msg;
@@ -30,15 +53,108 @@ void HandleGps(const gps_common::GPSFix::ConstPtr& msg)
   navsat_pub_.publish(fix_msg);
   
 }
-int main(int argc, char** argv)
+geometry_msgs::PolygonStamped obj_polygon_;
+float max_x_ = 4.2;
+float max_y_ = 2.5; 
+float max_z_ = 2;
+void setPolyGon()
 {
-  ros::init(argc,argv,"test66");
-  ros::NodeHandle n;
-  navsat_pub_ = n.advertise<sensor_msgs::NavSatFix>("/jzhw/navsat", 1);
-  gps_sub_ = n.subscribe("/jzhw/gps/fix", 5, HandleGps);
-  ros::spin();
-  return 0;
+  obj_polygon_.polygon.points.clear();
+  geometry_msgs::Point32 point;
+  point.x = max_x_;
+  point.y = max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = max_x_;
+  point.y = -max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = -max_x_;
+  point.y = -max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = -max_x_;
+  point.y = max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = max_x_;
+  point.y = max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  
+  point.x = max_x_;
+  point.y = max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+
+  point.x = max_x_;
+  point.y = -max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = max_x_;
+  point.y = -max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = max_x_;
+  point.y = -max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  
+  point.x = -max_x_;
+  point.y = -max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = -max_x_;
+  point.y = -max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = -max_x_;
+  point.y = -max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  
+  point.x = -max_x_;
+  point.y = max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = -max_x_;
+  point.y = max_y_;
+  point.z = max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  point.x = -max_x_;
+  point.y = max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
+  
+  point.x = max_x_;
+  point.y = max_y_;
+  point.z = -max_z_;
+  obj_polygon_.polygon.points.push_back(point);
 }
+
+void HandleModelPose(const visual_servo_msgs::Model3DPoseArray::ConstPtr& msg)
+{
+  visual_servo_msgs::Model3DPose pose = msg->model_pose_array[0];
+  geometry_msgs::TransformStamped pose_stamped;
+  pose_stamped.header.stamp = ros::Time::now();
+  pose_stamped.header.frame_id = "base_footprint";
+  pose_stamped.child_frame_id = "trailer_link2";
+  pose_stamped.transform.translation.x = pose.pose.position.x;
+  pose_stamped.transform.translation.y = pose.pose.position.y;
+  pose_stamped.transform.translation.z = pose.pose.position.z;
+  
+  pose_stamped.transform.rotation.x = pose.pose.orientation.x;
+  pose_stamped.transform.rotation.y = pose.pose.orientation.y;
+  pose_stamped.transform.rotation.z = pose.pose.orientation.z;
+  pose_stamped.transform.rotation.w = pose.pose.orientation.w;
+  static tf2_ros::TransformBroadcaster tf_broadcaster_;
+  tf_broadcaster_.sendTransform(pose_stamped);
+  
+  obj_polygon_.header.frame_id = "trailer_link2";
+  obj_polygon_.header.stamp = ros::Time::now();
+  polygon_pub_.publish(obj_polygon_);
+}
+
 //   vector<float> temp1, temp2, temp3;
 //   steady_clock::time_point t1 = steady_clock::now();
 //   fillVector(temp1);
