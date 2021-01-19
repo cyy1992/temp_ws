@@ -43,26 +43,96 @@
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
+
+#include <pcl/registration/icp.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <test6/SetPose.h>
+#include <geometry_msgs/PolygonStamped.h>
+#include <std_srvs/SetBool.h>
+struct Rigid3d
+{
+  Eigen::Vector3d t;
+  Eigen::Quaterniond q;
+  Rigid3d():t(Eigen::Vector3d(0,0,0)),q(Eigen::Quaterniond::Identity()){};
+  Rigid3d(Eigen::Vector3d t1, Eigen::Quaterniond q1):t(t1),q(q1){};
+  friend std::ostream & operator << (std::ostream &, Rigid3d &pose)
+  {
+    std::cout << "t:[" << pose.t(0) <<","<<pose.t(1)<<","<<pose.t(2) 
+    <<"]  q:["<<pose.q.w() <<"," <<pose.q.x()<<"," <<pose.q.y()<<"," <<pose.q.z() <<"]"<<std::endl;
+    
+    return std::cout;
+  }
+  
+  Rigid3d inverse()
+  {
+    Rigid3d inv;
+    inv.q = q.conjugate();
+    inv.t = -(inv.q * t);
+    return inv;
+  }
+  
+  Rigid3d operator*(const Rigid3d& p2)
+  {
+    Rigid3d p3;
+    p3.t = this->q * p2.t + this->t;
+    p3.q = this->q * p2.q;
+    return p3;
+  }
+  
+  Eigen::Vector3d operator*(const Eigen::Vector3d& p2)
+  {
+    Eigen::Vector3d p3;
+    p3 = this->q * p2 + this->t;
+    return p3;
+  }
+  
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
 class PointcloudTrans
 {
 typedef pcl::PointXYZ PointType;
+
 public:
   PointcloudTrans(const ros::NodeHandle& n);
   ~PointcloudTrans();
   
-  void HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr& msg);
   void HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& msg);
+  void ICPMatch(const pcl::PointCloud<PointType>::Ptr &cloud_target, 
+                 const pcl::PointCloud<PointType>::Ptr &cloud_source, 
+                 Eigen::Matrix4d &transform );
+  void PubTf(const ros::WallTimerEvent& unused_timer_event);
+  bool SetTargetPose(test6::SetPose::Request& request, test6::SetPose::Response& response);
+  bool SetModelName(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response);
 private:
+  void setPolyGon();
   ros::NodeHandle nh_;
   tf2_ros::Buffer tfBuffer_;
   tf2_ros::TransformListener tfListener_;
-  
-  ros::Subscriber cloud1_sub_,cloud2_sub_;
-  ros::Publisher cloud1_pub_,cloud2_pub_,cloud_all_pub_;
+  tf2_ros::TransformBroadcaster tf_broadcaster_;
+  ros::Subscriber cloud2_sub_;
+  std::vector<ros::ServiceServer> servers_;
+  ros::Publisher cloud2_pub_, cloud_all_pub_;
+  ros::Publisher target_pub_, source_pub_;
+  ros::Publisher polygon_pub_;
+  ros::Publisher model_pose_pub_;
+  ros::WallTimer wall_timer_;
   geometry_msgs::TransformStamped lidar2base_tf_;
   std::vector<Eigen::Vector3d> cloud_points_; 
   pcl::VoxelGrid<PointType> down_sample_;
   pcl::PointCloud<PointType>::Ptr points_;
+  pcl::PointCloud<PointType>::Ptr target_points_;
+  sensor_msgs::PointCloud2 target_msg_;
+  geometry_msgs::PolygonStamped obj_polygon_;
+  float ref_x, ref_y, ref_z;
+  float max_x_,max_y_,max_z_;
+  Rigid3d ref_odom2odom_;
+  Rigid3d obj2ref_odom_;
+  bool initialised_;
+  geometry_msgs::TransformStamped ref_odom2odom_tf_,obj2ref_odom_tf_;
+  std::string model_name;
 };
 
 #endif // POINTCLOUDTRANS_H
