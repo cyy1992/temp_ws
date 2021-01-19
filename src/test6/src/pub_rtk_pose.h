@@ -28,7 +28,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 #include <geometry_msgs/PolygonStamped.h>
-
+#include "visualization_msgs/MarkerArray.h"
 class PubRtkPose
 {
 struct Rigid3d
@@ -82,6 +82,7 @@ public:
   ~PubRtkPose();
   
   void HandleGps(const gps_common::GPSFix::ConstPtr &gps_msg);
+  void HandleZbPose(const geometry_msgs::Pose::ConstPtr& msg);
 private:
   void setParam();
   Eigen::Vector3d LatLongAltToEcef(const double latitude, const double longitude,
@@ -94,12 +95,21 @@ private:
   tf2_ros::TransformBroadcaster tf_broadcaster_;
   ros::Publisher model_pose_pub_;
   ros::Publisher polygon_pub_;
+  ros::Publisher zb_polygon_pub_;
+  ros::Publisher car_polygon_pub_;
+  ros::Publisher markers_pub_;
   ros::Subscriber rtk_sub_;
+  ros::Subscriber zb_sub_;
   geometry_msgs::PolygonStamped obj_polygon_;
+  geometry_msgs::PolygonStamped zb_polygon_;
+  geometry_msgs::PolygonStamped car_polygon_;
   Rigid3d ecef_in_map_,gps2trailer_;
   Rigid3d ecef_to_local_frame_,gps_to_base_init_,fix_in_map_;
 
   bool has_gps_data_info_;
+  geometry_msgs::TransformStamped zb_in_map_tf_;
+  visualization_msgs::MarkerArray zb_markers_;
+  Rigid3d ear1_in_map_,ear2_in_map_, hook1_in_trailer_, hook2_in_trailer_;
   
 };
 

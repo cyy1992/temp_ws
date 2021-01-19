@@ -180,9 +180,12 @@ void PubRtkOdom::HandleImu(const sensor_msgs::Imu::ConstPtr& imu_msg)
           tfBuffer_.lookupTransform("base_footprint", imu_msg->header.frame_id, ros::Time(0));
       gps2base_stamp =
           tfBuffer_.lookupTransform("base_footprint", "gnss_link", ros::Time(0));
+      gps2base_stamp.transform.rotation.w = 0.997;
+      gps2base_stamp.transform.rotation.z = -0.081;
       imu2base_ = ToRigid3d(imu2base_stamp);
       gps2base_ = ToRigid3d(gps2base_stamp);
       imu2base_init_ = true;
+      
       LOG(INFO) <<"imu2base: " << imu2base_ ;
       LOG(INFO) <<"gps2base: " << gps2base_;
     }

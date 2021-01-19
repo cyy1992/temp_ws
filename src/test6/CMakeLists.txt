@@ -130,8 +130,8 @@ target_link_libraries(pub_rtk_odom  ${catkin_LIBRARIES} cartographer cartographe
 
 # add_executable(generate_pbstream_from_pcd src/generate_pbstream_from_pcd.cpp)
 # target_link_libraries(generate_pbstream_from_pcd cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
-# add_executable(test6 src/test6_main.cpp)
-# target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(test6 src/test6_main.cpp)
+target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_executable(merge_cloud_from_pbstream src/merge_cloud_from_pbstream.cpp)
 # target_link_libraries(merge_cloud_from_pbstream cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
@@ -161,8 +161,8 @@ target_link_libraries(point_cloud_trans ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(pub_rtk_pose src/pub_rtk_pose.cpp)
 target_link_libraries(pub_rtk_pose ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(crop_points src/crop_points.cpp)
-target_link_libraries(crop_points ${catkin_LIBRARIES})
+# add_executable(crop_points src/crop_points.cpp)
+# target_link_libraries(crop_points ${catkin_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(string_operator src/string_operator.cpp)
@@ -190,7 +190,7 @@ target_link_libraries(crop_points ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  pub_rtk_pose pub_rtk_odom point_cloud_trans crop_points
+install(TARGETS  pub_rtk_pose pub_rtk_odom point_cloud_trans  test6
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
