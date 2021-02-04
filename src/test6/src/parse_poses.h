@@ -29,7 +29,10 @@ public:
   void ReadData(const std::vector<std::string>& files);
   void PubPath(const ros::WallTimerEvent& unused_timer_event);
   bool SetStep(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response);
+  bool SetSubmapShowId(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response);
+  void ParsePbstream(const std::string& pbstream_path,const std::string& pbstream2_path);
 private:
+  sensor_msgs::PointCloud2 ToPointCloud2Msg(const cartographer::sensor::PointCloud& cloud);
   ros::NodeHandle nh_;
 //   ros::Publisher path1_pub_,path2_pub_,gps_path_pub_;
   ros::ServiceServer srv_;

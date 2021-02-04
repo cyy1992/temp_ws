@@ -48,8 +48,9 @@ private:
   
   nav_msgs::Path tf_path_;
   ros::Publisher path_pub_;
-  
-  
+  ros::Publisher points_pub_;
+  Eigen::Affine3d first_pose_;
+  bool initial_;
 
 };
 
