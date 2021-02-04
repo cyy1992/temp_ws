@@ -462,13 +462,13 @@ void PbstreamConvertor::clusteringSubmaps()
   {
     colorTab[n] = Scalar(rng.uniform(0,255),rng.uniform(0,255),rng.uniform(0,255));
   };
-  int last_id =0;
+//   int last_id =0;
   vector<int> temp_num;
 
-  for(int j = 0; j < submap_poses.size(); j++)
+  for(unsigned int j = 0; j < submap_poses.size(); j++)
   {
     int clusterIdx = labels.at<int>(j);
-    int k =0;
+    unsigned int k =0;
     for(auto it : temp_num)
     {
       if(it == clusterIdx)
@@ -530,7 +530,7 @@ void PbstreamConvertor::preHandle()
   }
   
   
-  for(int i =0; i< num_range_data_.size(); i++)
+  for(unsigned int i =0; i< num_range_data_.size(); i++)
   {
     proto::TrajectoryBuilderOptionsWithSensorIds options =
       all_trajectory_builder_options_[i];
@@ -557,7 +557,7 @@ void PbstreamConvertor::preHandle()
   int trajectory_nodes_size[nodes_sort_by_trajectory_.size()];
   {
     
-    for(int i=0; i< nodes_sort_by_trajectory_.size(); i++)
+    for(unsigned int i=0; i< nodes_sort_by_trajectory_.size(); i++)
     {
       trajectory_nodes_size[i] = nodes_sort_by_trajectory_[i].size();
     }

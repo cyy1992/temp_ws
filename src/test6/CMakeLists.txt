@@ -129,8 +129,8 @@ target_link_libraries(wheel_odom_to_tf ${catkin_LIBRARIES})
 add_executable(calib_gps src/calib_gps.cpp)
 target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(pub_gps_path src/pub_gps_path.cpp)
-target_link_libraries(pub_gps_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(pub_gps_path src/pub_gps_path.cpp)
+# target_link_libraries(pub_gps_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(parse_poses src/parse_poses.cpp)
 target_link_libraries(parse_poses  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -191,7 +191,7 @@ target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps pub_gps_path pbstream_convertor parse_poses tf_to_path
+install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps  pbstream_convertor parse_poses tf_to_path
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
