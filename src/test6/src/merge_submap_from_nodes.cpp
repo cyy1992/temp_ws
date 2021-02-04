@@ -150,6 +150,9 @@ bool MergeSubmapFromNodes::readFromPbstream(std::string filename)
   cartographer::mapping::proto::PoseGraph pose_graph_proto =
   deserializer.pose_graph();
   MapById<NodeId, transform::Rigid3d> node_poses;
+  ofstream outFile;
+  outFile.open("/home/cyy/temp_poses.txt", std::ios::out | std::ios::app);
+
   for (const cartographer::mapping::proto::Trajectory& trajectory_proto :
     pose_graph_proto.trajectory())
   {
@@ -161,12 +164,16 @@ bool MergeSubmapFromNodes::readFromPbstream(std::string filename)
       node_poses.Insert(
         NodeId{ trajectory_proto.trajectory_id(), node_proto.node_index() },
                         global_pose);
+      outFile << "(" << trajectory_proto.trajectory_id() << "," << node_proto.node_index() <<"): \t";
+      outFile << global_pose.translation().x() << " " << global_pose.translation().y() << " " <<global_pose.translation().z()
+       <<" \t " << global_pose.rotation().x() << " " << global_pose.rotation().y() << " " <<global_pose.rotation().z()<< " " <<global_pose.rotation().w() <<endl;
       common::Time time= common::FromUniversal(node_proto.timestamp());
       ros::Time ros_time = cartographer_ros::ToRos(time);
       double t = ros_time.toSec();
       poses_with_times_[t] = global_pose;
     }
   }
+  outFile.close();
   return true;
 //   cartographer::mapping::proto::SerializedData proto_tmp;
 //   bool initialised = false;
@@ -280,8 +287,8 @@ int main(int argc, char** argv)
   ros::init(argc,argv,"read_nodes");
   
   MergeSubmapFromNodes merge;
-  merge.readFromPbstream("/home/cyy/map/zx_nj3/map.pbstream");
-  
+  merge.readFromPbstream("/home/cyy/map/test3/map.pbstream");
+  cout << "load done!" <<endl;
   ros::spin();
   return 1;
 }

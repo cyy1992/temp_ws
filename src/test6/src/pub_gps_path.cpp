@@ -25,10 +25,13 @@
 #include "cartographer/mapping/proto/serialization.pb.h"
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <cartographer_ros/time_conversion.h>
+#include <cartographer/sensor/internal/voxel_filter.h>
 using namespace std;
 using namespace std::chrono;
 using namespace cartographer;
 using mapping::proto::SerializedData;
+static constexpr int kMappingStateSerializationFormatVersion = 2;
+static constexpr int kFormatVersionWithoutSubmapHistograms = 1;
 
 PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh_(n),
   tf_buffer_{::ros::Duration(10.)}, tfListener_(tf_buffer_), map_path_(map_path)
@@ -39,9 +42,11 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
       "save_poses_with_time", &PubGpsPath::SaveDataSrv, this));
   gps_sub_ = nh_.subscribe<gps_common::GPSFix>("/jzhw/gps/fix", 3,
                                           &PubGpsPath::handleGps, this);
-  
+  lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/pointcloud_front", 3,
+                                          &PubGpsPath::handlePointcloud, this);
   odom_frame_ = "odom";
   base_frame_ = "base_footprint";
+  lidar_frame_ = "lidar_link";
 }
 
 PubGpsPath::~PubGpsPath()
@@ -59,9 +64,35 @@ void PubGpsPath::setParam()
   ::ros::param::get("/jzhw/calib/gps/default/px",gps2base_x);
   ::ros::param::get("/jzhw/calib/gps/default/py",gps2base_y);
   ::ros::param::get("/jzhw/calib/gps/default/yaw",gps2base_yaw);
-  
-  gps2base_.t = Eigen::Vector3d(gps2base_x,gps2base_y,0);
-  gps2base_.q = Eigen::Quaterniond(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
+  int k = 0;
+  ros::Rate rate(1);
+  while(1){
+    try{
+      auto gps2base_tf = tf_buffer_.lookupTransform("base_footprint", "gnss_link", ros::Time(0));
+      Eigen::Vector3d t(gps2base_tf.transform.translation.x, 
+                                    gps2base_tf.transform.translation.y,
+                                    gps2base_tf.transform.translation.z);
+      
+      Eigen::Quaterniond q(gps2base_tf.transform.rotation.w,
+                                      gps2base_tf.transform.rotation.x,
+                                      gps2base_tf.transform.rotation.y,
+                                      gps2base_tf.transform.rotation.z);
+      gps2base_ = Rigid3d(q,t);
+      break;
+    }
+    catch (const tf2::TransformException& ex){
+      if(k++ > 20){
+        LOG(WARNING) << "Can not get gps2base tf!";
+        Eigen::Vector3d t(gps2base_x,gps2base_y,0);
+        Eigen::Quaterniond q(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
+        gps2base_ = Rigid3d(q,t);
+        break;
+      }
+      rate.sleep();
+    }
+  }
+//   gps2base_.t = Eigen::Vector3d(gps2base_x,gps2base_y,0);
+//   gps2base_.q = Eigen::Quaterniond(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
   std::cout <<"\033[36m gps2base_:" << gps2base_ <<"\033[0m" <<std::endl;
   
   //get fix_in_map_, ecef_in_map_
@@ -253,7 +284,7 @@ void PubGpsPath::pathPub(const gps_common::GPSFix& msg)
 
 void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
-  mapping::TrajectoryNode::Data data;
+  
   sensor::PointCloud cloud;
   sensor_msgs::PointCloud2 origin_cloud = *msg;
   sensor_msgs::PointCloud2Iterator<float> iter_x(origin_cloud, "x");
@@ -275,9 +306,9 @@ void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
     cloud.push_back({point,intensity});
   }
   cloud_times_.push(msg->header.stamp);
-  data.high_resolution_point_cloud = cloud;
-  data.time = cartographer_ros::FromRos(cloud_times_.back());
-  cloud_with_time_[cloud_times_.back()] = data;
+  
+  origin_cloud_with_time_[cloud_times_.back()] = sensor::VoxelFilter(0.1).Filter(cloud);
+  
   while(cloud_times_.size() > 0)
   {
     geometry_msgs::TransformStamped lidar2odom;
@@ -290,10 +321,18 @@ void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
       Eigen::Quaterniond q(lidar2odom.transform.rotation.w, lidar2odom.transform.rotation.x,
                         lidar2odom.transform.rotation.y, lidar2odom.transform.rotation.z);
       Rigid3d lidar2odom_pose(q,t);
-      for(auto& point : cloud_with_time_[cloud_times_.back()].high_resolution_point_cloud)
+      cout << lidar2odom_pose <<endl;
+      mapping::TrajectoryNode::Data data;
+      data.high_resolution_point_cloud.reserve(origin_cloud_with_time_[cloud_times_.front()].size());
+      data.time = cartographer_ros::FromRos(cloud_times_.front());
+      for(const auto& point : origin_cloud_with_time_[cloud_times_.front()])
       {
-        point.position = lidar2odom_pose * point.position;
+        sensor::RangefinderPoint p;
+        p.position = lidar2odom_pose * point.position;
+        p.intensity = point.intensity;
+        data.high_resolution_point_cloud.push_back(p);
       }
+      cloud_with_time_[cloud_times_.front()] = data;
       cout << "cloud_times: " << cloud_times_.front() <<endl;
       cloud_times_.pop();
     }
@@ -327,6 +366,9 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
   outFile.close();
   
   io::ProtoStreamWriter writer("/home/cyy/1.pbstream");
+  mapping::proto::SerializationHeader header;
+  header.set_format_version(kMappingStateSerializationFormatVersion);
+  writer.WriteProto(header);
   int k = 0;
   for (const auto& node : cloud_with_time_) {
     SerializedData proto;
@@ -337,6 +379,7 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
     writer.WriteProto(proto);
   }
   writer.Close();
+  cout <<"save done!" <<endl;
 }
 
 int main(int argc, char **argv)
