@@ -44,7 +44,7 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
                                           &PubGpsPath::handleGps, this);
   lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/pointcloud_front", 3,
                                           &PubGpsPath::handlePointcloud, this);
-  odom_frame_ = "odom";
+  odom_frame_ = "map";
   base_frame_ = "base_footprint";
   lidar_frame_ = "lidar_link";
 }
@@ -386,7 +386,7 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "pub_gps_path_node");
   ros::NodeHandle n;
-  string map_name = "/home/cyy/map/puyan_around";
+  string map_name = "/home/cyy/map/sanhuan16";
   PubGpsPath gps(n,map_name);
   ros::spin();
   return 1;

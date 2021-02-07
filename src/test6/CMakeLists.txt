@@ -42,6 +42,7 @@ find_package(libnabo REQUIRED PATHS ${LIBNABO_INSTALL_DIR})
 find_package(PCL REQUIRED COMPONENTS common io console)
 find_package(yaml-cpp REQUIRED)
 find_package(csm_eigen REQUIRED)
+find_package(Ceres REQUIRED)
 
 add_service_files(
   DIRECTORY srv
@@ -69,6 +70,7 @@ include_directories(include
   ${cartographer_ros_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${csm_eigen_INCLUDE_DIRS}
+  ${CERES_INCLUDE_DIRS}
 #   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
 # include_directories(
@@ -96,7 +98,8 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 # target_link_libraries(point_matcher_mapping  ${catkin_LIBRARIES} cartographer cartographer_ros ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(pub_rtk_odom src/pub_rtk_odom.cpp)
 target_link_libraries(pub_rtk_odom  ${catkin_LIBRARIES} cartographer cartographer_ros)
-
+add_executable(ceres_test src/ceres_test.cpp)
+target_link_libraries(ceres_test  ${catkin_LIBRARIES} ceres)
 # add_executable(pbstream_convertor src/pbstream_convertor.cpp)
 # target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 # 
@@ -121,11 +124,11 @@ target_link_libraries(pub_rtk_odom  ${catkin_LIBRARIES} cartographer cartographe
 # add_executable(calib_gps src/calib_gps.cpp)
 # target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 # 
-# add_executable(pub_gps_path src/pub_gps_path.cpp)
-# target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(pub_gps_path src/pub_gps_path.cpp)
+target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-# add_executable(pub_gps_path src/pub_gps_path.cpp)
-# target_link_libraries(pub_gps_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(parse_poses src/parse_poses.cpp)
+target_link_libraries(parse_poses  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 
 # add_executable(generate_pbstream_from_pcd src/generate_pbstream_from_pcd.cpp)
@@ -133,8 +136,8 @@ target_link_libraries(pub_rtk_odom  ${catkin_LIBRARIES} cartographer cartographe
 add_executable(test6 src/test6_main.cpp)
 target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-# add_executable(merge_cloud_from_pbstream src/merge_cloud_from_pbstream.cpp)
-# target_link_libraries(merge_cloud_from_pbstream cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
+add_executable(merge_cloud_from_pbstream src/merge_cloud_from_pbstream.cpp)
+target_link_libraries(merge_cloud_from_pbstream cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
 
 # add_executable(tf_to_path src/tf_to_path.cpp)
 # target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
@@ -155,8 +158,8 @@ target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRA
 # add_executable(depth_color_registration_node src/depth_color_registration.cpp src/depth2colorAlign.cpp)
 # target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # 
-add_executable(point_cloud_trans src/point_cloud_trans.cpp)
-target_link_libraries(point_cloud_trans ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(point_cloud_trans src/point_cloud_trans.cpp)
+# target_link_libraries(point_cloud_trans ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(pub_rtk_pose src/pub_rtk_pose.cpp)
 target_link_libraries(pub_rtk_pose ${catkin_LIBRARIES} ${PCL_LIBRARIES})
@@ -190,7 +193,7 @@ target_link_libraries(pub_rtk_pose ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps  pbstream_convertor parse_poses tf_to_path
+install(TARGETS  pub_rtk_pose pub_rtk_odom  test6 parse_poses merge_cloud_from_pbstream ceres_test pub_gps_path
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

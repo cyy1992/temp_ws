@@ -280,7 +280,7 @@ int main(int argc, char** argv){
   ros::init(argc, argv, "merge_cloud_from_pbstream");
   ros::NodeHandle n;
   MergeCloudFromPbstream temp(n);
-  temp.readFromPbstream("/home/cyy/map/sanhuan06/map.pbstream");
+  temp.readFromPbstream("/home/cyy/map/sanhuan16/map.pbstream");
   
   ros::spin();
   return 1;
