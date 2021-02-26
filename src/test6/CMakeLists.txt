@@ -29,6 +29,7 @@ find_package(catkin REQUIRED COMPONENTS
   libpointmatcher_ros
   gps_common
   cartographer_ros_msgs
+  nlink_parser
 )
 
 find_package(Abseil REQUIRED)

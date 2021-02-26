@@ -1,11 +1,16 @@
 #include <opencv2/core/core.hpp>
 #include<opencv2/opencv.hpp>
 #include<iostream>
+#include <fstream>
 #include <string>
 #include <chrono>
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <gps_common/GPSFix.h>
+#include <nlink_parser/LinktrackNodeframe2.h>
+#include <geometry_msgs/Point.h>
+#include <eigen3/Eigen/Eigen>
+
 using namespace cv;
 using namespace std;
 using namespace std::chrono;
@@ -18,6 +23,7 @@ void fillVector(vector<float>& temp)
 
 ros::Subscriber gps_sub_;
 ros::Publisher navsat_pub_;
+ros::Publisher dis_pub_;
 void HandleGps(const gps_common::GPSFix::ConstPtr& msg)
 {
   sensor_msgs::NavSatFix fix_msg;
@@ -30,13 +36,91 @@ void HandleGps(const gps_common::GPSFix::ConstPtr& msg)
   navsat_pub_.publish(fix_msg);
   
 }
+Eigen::Vector2d x_k;
+Eigen::Vector2d z_k;
+Eigen::Matrix2d A;
+Eigen::Vector2d H;
+
+Eigen::Matrix2d P_k;
+Eigen::Matrix2d Q_k;
+double R_k;
+Eigen::Vector2d K;
+bool initial_flag = true;
+float last_time = 0;
+std::vector<double> distances_;
+std::vector<double> det_times_;
+void HandleNlink(const nlink_parser::LinktrackNodeframe2::ConstPtr& msg)
+{
+  static float last_dist = -1;
+  geometry_msgs::Point p;
+  p.x = 0;
+  for(nlink_parser::LinktrackNode2 node: msg->nodes)
+  {
+    if(/*node.id == 1&&*/node.dis != 0 && last_dist != node.dis)
+    {
+      p.x = node.dis;
+      last_dist = node.dis;
+    }
+  }
+  
+  if(initial_flag)
+  {
+    initial_flag = false;
+    H << 1,0;
+    A << 1,0,0,1;
+    P_k << 1,0,0,1;
+    Q_k << 10,0,0,0.01;
+    R_k = 1;
+    x_k(0) = p.x;
+    x_k(1) = 0;
+    last_time = msg->system_time * 1.0 / 1000;
+    return;
+  }
+//   cout << p.x <<endl;
+//   static int kk = 0;
+//   p.x = kk++;
+  if(p.x !=0)
+  {
+    double det_time = msg->system_time * 1.0 / 1000 - last_time;
+    A(0,1) = det_time;
+    distances_.push_back(p.x);
+    det_times_.push_back(det_time);
+    
+    Eigen::Vector2d x_ = A * x_k;
+    Eigen::Matrix2d P_ = A * P_k * A.transpose() + Q_k;
+    double temp = P_(0,0);
+    double temp2 = 1.0 / (temp + R_k);
+    K = P_*H * temp2;
+    x_k = x_ + K *(p.x -x_(0) );
+    Eigen::Matrix2d k_h ;
+    k_h << K(0),0,K(1),0;
+    P_k = (Eigen::Matrix2d::Identity() - k_h) * P_;
+    last_time = msg->system_time * 1.0 / 1000;
+    p.y = p.x;
+    p.x = x_k(0);
+    dis_pub_.publish(p);
+    cout << x_k.transpose() <<endl;
+  }
+}
 int main(int argc, char** argv)
 {
   ros::init(argc,argv,"test66");
   ros::NodeHandle n;
   navsat_pub_ = n.advertise<sensor_msgs::NavSatFix>("/jzhw/navsat", 1);
-  gps_sub_ = n.subscribe("/jzhw/gps/fix", 5, HandleGps);
+  dis_pub_ = n.advertise<geometry_msgs::Point>("dis_point",1);
+  gps_sub_ = n.subscribe("/nlink_linktrack_nodeframe2", 5, HandleNlink);
   ros::spin();
+  ofstream outFile1,outFile2;
+  //连续写入
+  outFile1.open("/home/cyy/distances.txt", std::ios::out);
+  for(auto it:distances_)
+    outFile1 << it << endl;
+  outFile1.close();
+  
+  outFile2.open("/home/cyy/det_times.txt", std::ios::out);
+  for(auto it:det_times_)
+    outFile2 << it << endl;
+  outFile2.close();
   return 0;
 }
 //   vector<float> temp1, temp2, temp3;

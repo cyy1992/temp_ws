@@ -47,6 +47,9 @@ public:
   
   void HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr& msg);
   void HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& msg);
+  void calibRollPitchZ(const geometry_msgs::TransformStamped& prior_transform, 
+                       const sensor_msgs::PointCloud2& cloud,
+                       geometry_msgs::TransformStamped& result_transform);
 private:
   ros::NodeHandle nh_;
   tf2_ros::Buffer tfBuffer_;
