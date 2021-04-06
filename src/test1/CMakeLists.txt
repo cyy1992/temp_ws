@@ -3,42 +3,51 @@ project(test1)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
-
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
+SET(CMAKE_BUILD_TYPE "Release") 
+add_compile_options(-std=c++11 -O3 -g -DNDEBUG -pthread)
+file(GLOB TAG_FILES include/AprilTags/tag*.c)
+set(APRILTAG_SRCS include/AprilTags/apriltag.c include/AprilTags/apriltag_pose.c include/AprilTags/apriltag_quad_thresh.c 
+include/AprilTags/apriltag_family.c)
+aux_source_directory(include/AprilTags/common COMMON_SRC)
+# Library
+set_source_files_properties(SOURCE ${TAG_FILES} PROPERTIES COMPILE_FLAGS -O0)
+set(OpenCV_DIR /opt/ros/kinetic/share/OpenCV-3.3.1-dev)
 find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(catkin REQUIRED COMPONENTS
-  cv_bridge
-  roscpp
-  sensor_msgs
-  nav_msgs
-  eigen_conversions
+find_package(Threads REQUIRED)
+include_directories(
+    include/
+    ${OpenCV_INCLUDE_DIRS}
+    /usr/include/eigen3
+)
+# add_library(apriltag SHARED ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
+add_library(apriltag_static STATIC ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
+
+# target_link_libraries(apriltag Threads::Threads m)
+
+
+add_library(imreg_fmt
+    #src/image_dft.cpp
+    src/image_transforms.cpp
+    src/image_registration.cpp
 )
 
-catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES test1
-#  CATKIN_DEPENDS cv_bridge roscpp sensor_msgs
-#  DEPENDS system_lib
+target_link_libraries(imreg_fmt
+    ${OpenCV_LIBS}
+#     ${FFTW_LIBRARIES}
+)
+add_executable(image_main
+    src/image_main.cpp
+    src/ImageProjector.cpp 
 )
 
-include_directories(include
-  ${catkin_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
-  ${EIGEN_INCLUDE_DIR}
+target_link_libraries(image_main
+    imreg_fmt
+    
 )
-
-## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/test1.cpp
-# )
-
-## Declare a C++ executable
-## With catkin_make all packages are built within a single CMake context
-## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/main.cpp)
-target_link_libraries(${PROJECT_NAME}_node
-  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} 
+add_executable(${PROJECT_NAME}_node src/detect_tag.cpp src/ImageProjector.cpp )
+# include/AprilTags/Edge.cc include/AprilTags/FloatImage.cc include/AprilTags/GLine2D.cc 
+# include/AprilTags/GLineSegment2D.cc include/AprilTags/Gaussian.cc include/AprilTags/GrayModel.cc 
+# include/AprilTags/Homography33.cc include/AprilTags/MathUtil.cc include/AprilTags/Quad.cc include/AprilTags/Segment.cc
+# include/AprilTags/TagDetection.cc include/AprilTags/TagDetector.cc include/AprilTags/TagFamily.cc include/AprilTags/UnionFindSimple.cc)
+target_link_libraries(${PROJECT_NAME}_node apriltag_static pthread ${OpenCV_LIBRARIES}  
 )
