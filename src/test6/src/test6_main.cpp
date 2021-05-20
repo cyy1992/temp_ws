@@ -230,22 +230,22 @@
 // 	
 // }
 
-#include <iostream>
-#include <ros/ros.h>
-#include <ros/package.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/SetCameraInfo.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/opencv.hpp>
-#include <vtr_msgs/GlobalLocalizationPose.h>
-#include <cartographer/common/time.h>
-#include <cartographer_ros_msgs/SetSwitch.h>
-using namespace std;
-using namespace cv;
-ros::Subscriber sub_;
-ros::Publisher pub_;
-ros::ServiceClient client_;
+// #include <iostream>
+// #include <ros/ros.h>
+// #include <ros/package.h>
+// #include <sensor_msgs/Image.h>
+// #include <sensor_msgs/SetCameraInfo.h>
+// #include <geometry_msgs/TwistStamped.h>
+// #include <cv_bridge/cv_bridge.h>
+// #include <opencv2/opencv.hpp>
+// #include <vtr_msgs/GlobalLocalizationPose.h>
+// #include <cartographer/common/time.h>
+// #include <cartographer_ros_msgs/SetSwitch.h>
+// using namespace std;
+// using namespace cv;
+// ros::Subscriber sub_;
+// ros::Publisher pub_;
+// ros::ServiceClient client_;
 
 // ::ros::Time ToRos(::cartographer::common::Time time)
 // {
@@ -362,39 +362,52 @@ ros::ServiceClient client_;
 //   ros::spin();
 //   return 1;
 // }
-// #include <iostream>
-// #include <pcl/io/pcd_io.h>
-// #include <pcl/io/ply_io.h>
-// #include <pcl/console/print.h>
-// #include <pcl/console/parse.h>
-// #include <pcl/console/time.h>
-// #include <pcl/io/vtk_lib_io.h>
-// #include <pcl/io/vtk_io.h>
-// #include <vtkPolyData.h>
-// #include <vtkSmartPointer.h>
-// #include <pcl/visualization/cloud_viewer.h>  
-//  #include <pcl/conversions.h>
-// #include <opencv2/opencv.hpp>
-// using namespace pcl;
-// using namespace pcl::io;
-// using namespace pcl::console;
-//  
-// int main()
-// {
-//   pcl::PolygonMesh mesh;
-// 
-//   if (pcl::io::loadPLYFile("/media/cyy/CYY_DISK/others/bags/gps/out1.bag_points.ply", mesh))
-//   {
-//     std::cout << "文件读取失败！";
-//   }
-//   
-//   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D viewer window"));
-//   viewer->addPolygonMesh(mesh, "mesh");
-//   while (!viewer->wasStopped())
-//   {
-//     viewer->spinOnce();
-//   }
-//   return 0;
+#include <iostream>
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/console/print.h>
+#include <pcl/console/parse.h>
+#include <pcl/console/time.h>
+#include <pcl/io/vtk_lib_io.h>
+#include <pcl/io/vtk_io.h>
+#include <vtkPolyData.h>
+#include <vtkSmartPointer.h>
+#include <pcl/visualization/cloud_viewer.h>  
+ #include <pcl/conversions.h>
+#include <opencv2/opencv.hpp>
+#include <stdio.h>
+using namespace pcl;
+using namespace pcl::io;
+using namespace pcl::console;
+ using namespace std;
+int main()
+{
+  FILE *fp;
+  char buffer[20];
+
+  fp = popen("cat /home/cyy/jz_total_*.txt |grep calib | awk -F'==' '{print $2}'", "r");
+  if (fp != NULL)
+  {
+    while (fgets(buffer, 20, fp) != NULL)
+    {}
+    pclose(fp);
+  }
+  
+  cout << temp <<"."<<endl;
+  // pcl::PolygonMesh mesh;
+
+  // if (pcl::io::loadPLYFile("/media/cyy/CYY_DISK/others/bags/gps/out1.bag_points.ply", mesh))
+  // {
+  //   std::cout << "文件读取失败！";
+  // }
+  
+  // boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("3D viewer window"));
+  // viewer->addPolygonMesh(mesh, "mesh");
+  // while (!viewer->wasStopped())
+  // {
+  //   viewer->spinOnce();
+  // }
+  // return 0;
 
 //     pcl::PCLPointCloud2 point_cloud2;
 //     pcl::PLYReader reader;
@@ -409,6 +422,7 @@ ros::ServiceClient client_;
 // //         pause();
 //         return(-1);
 //     }
+//     
 //     std::cout << "read done!" <<std::endl;
 //     pcl::visualization::CloudViewer viewer("Cloud Viewer");
 //     viewer.showCloud(cloud);
@@ -416,9 +430,8 @@ ros::ServiceClient client_;
 //     pause();
 //     pcl::PCDWriter writer;
 //     writer.writeASCII("/media/cyy/CYY_DISK/others/bags/gps/data.pcd", point_cloud2);  
-//     
 //     return 0;
-// }
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
 int main(int argc, char **argv)
 {

@@ -3,8 +3,10 @@ project(test6)
 add_compile_options(-std=c++11 -O3 -DNDEBUG -pthread)
 # add_compile_options(-std=c++14)
 # add_definitions(-std=c++11)
-SET(CMAKE_BUILD_TYPE "Debug")
-SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
+SET(CMAKE_BUILD_TYPE "Release")
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3")
+# SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O3 -Wall -g -ggdb")
+
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(cartographer REQUIRED)
@@ -35,6 +37,7 @@ find_package(catkin REQUIRED COMPONENTS
   vtr_msgs
   libpointmatcher_ros
   gps_common
+  cartographer_ros_msgs
 )
 add_service_files(
   DIRECTORY srv
@@ -95,8 +98,8 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 add_executable(pbstream_convertor src/pbstream_convertor.cpp)
 target_link_libraries(pbstream_convertor cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 # 
-# add_executable(merge_submap src/merge_submap_from_nodes.cpp)
-# target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(merge_submap src/merge_submap_from_nodes.cpp)
+target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_executable(pcl_test src/pcl_project.cpp)
 # target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -107,6 +110,8 @@ target_link_libraries(reset_params ${catkin_LIBRARIES})
 add_executable(wheel_odom_to_tf src/wheel_odom_to_tf.cpp)
 target_link_libraries(wheel_odom_to_tf ${catkin_LIBRARIES})
 
+add_executable(get_tf_poses src/get_tf_poses.cpp)
+target_link_libraries(get_tf_poses ${catkin_LIBRARIES})
 
 # add_executable(pub_submap_points src/pub_submap_points.cpp)
 # target_link_libraries(pub_submap_points  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -117,12 +122,18 @@ target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_L
 add_executable(pub_gps_path src/pub_gps_path.cpp)
 target_link_libraries(pub_gps_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(generate_pbstream_from_pcd src/generate_pbstream_from_pcd.cpp)
+target_link_libraries(generate_pbstream_from_pcd cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
 add_executable(test6 src/test6_main.cpp)
 target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(merge_cloud_from_pbstream src/merge_cloud_from_pbstream.cpp)
+target_link_libraries(merge_cloud_from_pbstream cartographer cartographer_ros ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} )
 
-# add_executable(tf_to_path src/tf_to_path.cpp)
-# target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+
+
+add_executable(tf_to_path src/tf_to_path.cpp)
+target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
 # add_executable(read_json src/read_json.cpp)
 # target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
@@ -180,24 +191,22 @@ install(TARGETS  depth_color_registration_node test6 point_cloud_trans calib_gps
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
 install(FILES
-    lib/libapriltag.so
-    lib/libapriltag.so.3
-    lib/libapriltag.so.3.1.0
     lib/libimage_projector.so
     lib/libpointmatcher_ros.so
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-# install(FILES lib/libapriltag_mit.so
-#   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-# )
-file(GLOB_RECURSE HDRS "*.h")
-foreach(HDR ${HDRS})
-  file(RELATIVE_PATH REL_FIL ${PROJECT_SOURCE_DIR} ${HDR})
-  get_filename_component(INSTALL_DIR ${REL_FIL} DIRECTORY)
-  install(
-    FILES
-      ${HDR}
-    DESTINATION
-      ${INSTALL_DIR}
-  )
-endforeach()
+# # install(FILES lib/libapriltag_mit.so
+# #   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+# # )
+# file(GLOB_RECURSE HDRS "*.h")
+# foreach(HDR ${HDRS})
+#   file(RELATIVE_PATH REL_FIL ${PROJECT_SOURCE_DIR} ${HDR})
+#   get_filename_component(INSTALL_DIR ${REL_FIL} DIRECTORY)
+#   install(
+#     FILES
+#       ${HDR}
+#     DESTINATION
+#       ${INSTALL_DIR}
+#   )
+# endforeach()
