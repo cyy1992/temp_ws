@@ -153,6 +153,8 @@ private:
   std::string odom_frame_;
   std::string base_frame_;
   std::string lidar_frame_;
+  
+  Rigid3d last_rtk_pose_;
 //   std::vector<cartographer::mapping::TrajectoryNode::Data> trajectory_nodes_;
 };
 

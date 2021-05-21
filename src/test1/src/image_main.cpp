@@ -5,6 +5,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <ImageProjector.h>
+#include <memory>
 using namespace std;
 using namespace cv;
 
@@ -63,8 +64,9 @@ while(1){
     t.start();
     Mat im1;
     p_ip_->projectImage(im11, im1);
-    ImageRegistration image_registration(im0.rows, im0.cols);
-    image_registration.initialize(im0);
+    std::shared_ptr<ImageRegistration> image_registration;//(im0.rows, im0.cols);
+    image_registration = make_shared<ImageRegistration>(im0.rows, im0.cols);
+    image_registration->initialize(im0);
 
     
 
@@ -76,7 +78,7 @@ while(1){
 
     cur2ref_T = cv::Mat::zeros(3, 1, CV_64FC1);
     double overlap = 0., double_check = -1.;
-    image_registration.registerImage(im1, cur2ref_R, cur2ref_T, overlap, double_check, true, false);
+    image_registration->registerImage(im1, cur2ref_R, cur2ref_T, overlap, double_check, true, false);
 
     double time = t.stop();
     std::cout << "Time used: " << time*1e3 << " ms.\n";

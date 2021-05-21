@@ -14,11 +14,15 @@ set_source_files_properties(SOURCE ${TAG_FILES} PROPERTIES COMPILE_FLAGS -O0)
 set(OpenCV_DIR /opt/ros/kinetic/share/OpenCV-3.3.1-dev)
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system thread)
 include_directories(
     include/
     ${OpenCV_INCLUDE_DIRS}
     /usr/include/eigen3
+    ${Boost_INCLUDE_DIRS}
 )
+link_libraries( ${Boost_LIBRARIES})
+
 # add_library(apriltag SHARED ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
 add_library(apriltag_static STATIC ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
 
@@ -44,6 +48,17 @@ target_link_libraries(image_main
     imreg_fmt
     
 )
+
+add_executable(memory_test
+    src/memory_test.cpp
+    src/ImageProjector.cpp 
+)
+
+target_link_libraries(memory_test
+    imreg_fmt
+    
+)
+
 add_executable(${PROJECT_NAME}_node src/detect_tag.cpp src/ImageProjector.cpp )
 # include/AprilTags/Edge.cc include/AprilTags/FloatImage.cc include/AprilTags/GLine2D.cc 
 # include/AprilTags/GLineSegment2D.cc include/AprilTags/Gaussian.cc include/AprilTags/GrayModel.cc 

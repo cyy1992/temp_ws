@@ -83,6 +83,7 @@ public:
   void ParsePbstream(const std::string& pbstream_path,const std::string& pbstream2_path);
 private:
   sensor_msgs::PointCloud2 ToPointCloud2Msg(const cartographer::sensor::PointCloud& cloud);
+  void saveAsKittiFormat();
   ros::NodeHandle nh_;
   ros::Publisher path1_pub_,path2_pub_,gps_path_pub_;
   ros::Publisher cloud1_pub_, cloud2_pub_;

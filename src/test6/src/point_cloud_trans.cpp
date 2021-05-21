@@ -21,10 +21,9 @@
 using namespace std;
 PointcloudTrans::PointcloudTrans(const ros::NodeHandle& n):nh_(n),tfBuffer_(ros::Duration(20.)),tfListener_(tfBuffer_)
 {
-  Eigen::Quaterniond q(0.689, 0,0,-0.725);
-  cout << q.toRotationMatrix() <<endl;
-  cloud1_sub_ = nh_.subscribe("/velodyne_points",10, &PointcloudTrans::HandleCloudFront,this);
-  cloud2_sub_ = nh_.subscribe("/pointcloud_back",10, &PointcloudTrans::HandleCloudBack,this);
+  cout << "start ... " << endl;
+  cloud1_sub_ = nh_.subscribe("/pointcloud_back",10, &PointcloudTrans::HandleCloudFront,this);
+//   cloud2_sub_ = nh_.subscribe("/pointcloud_back",10, &PointcloudTrans::HandleCloudBack,this);
   cloud1_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/pointcloud_front1",10);
   cloud2_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/pointcloud_back1",10);
 }
@@ -53,10 +52,10 @@ void PointcloudTrans::calibRollPitchZ(const geometry_msgs::TransformStamped& pri
   for(int i = -10; i <10; i++)
   {
     float z = i * 0.01 + init_z;
-    for(int j = -30; j < 30; j++)
+    for(int j = -50; j < 50; j++)
     {
       float pitch = init_pitch + j * 0.001;
-      for(int k = -30; k < 30; k++)
+      for(int k = -50; k < 50; k++)
       {
         float roll = init_roll + k * 0.001;
         Eigen::Matrix3d matrix_tmp;

@@ -108,8 +108,14 @@ target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRAR
 add_executable(reset_params src/reset_params.cpp)
 target_link_libraries(reset_params ${catkin_LIBRARIES})
 
+add_executable(project_img src/project_img.cpp)
+target_link_libraries(project_img  image_projector ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
 add_executable(wheel_odom_to_tf src/wheel_odom_to_tf.cpp)
 target_link_libraries(wheel_odom_to_tf ${catkin_LIBRARIES})
+
+add_executable(check_odom_imu src/check_odom_imu.cpp)
+target_link_libraries(check_odom_imu ${catkin_LIBRARIES})
 
 add_executable(get_tf_poses src/get_tf_poses.cpp)
 target_link_libraries(get_tf_poses ${catkin_LIBRARIES})
@@ -120,8 +126,8 @@ target_link_libraries(get_tf_poses ${catkin_LIBRARIES})
 add_executable(calib_gps src/calib_gps.cpp)
 target_link_libraries(calib_gps  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(pub_gps_path src/pub_gps_path.cpp)
-target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(pub_gps_path src/pub_gps_path.cpp)
+# target_link_libraries(pub_gps_path  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_executable(parse_poses src/parse_poses.cpp)
 # target_link_libraries(parse_poses  cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
@@ -138,6 +144,8 @@ target_link_libraries(test6  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRA
 add_executable(tf_to_path src/tf_to_path.cpp)
 target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
+add_executable(kalman_test src/kalman_test.cpp)
+target_link_libraries(kalman_test  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 # add_executable(read_json src/read_json.cpp)
 # target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
@@ -186,7 +194,7 @@ target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
 # add_subdirectory(launch)
 
-install(TARGETS  test6 point_cloud_trans
+install(TARGETS  test6 point_cloud_trans kalman_test  check_odom_imu project_img
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

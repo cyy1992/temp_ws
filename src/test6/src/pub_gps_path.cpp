@@ -34,7 +34,7 @@ static constexpr int kMappingStateSerializationFormatVersion = 2;
 static constexpr int kFormatVersionWithoutSubmapHistograms = 1;
 
 PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh_(n),
-  tf_buffer_{::ros::Duration(10.)}, tfListener_(tf_buffer_), map_path_(map_path)
+  tf_buffer_{::ros::Duration(30.)}, tfListener_(tf_buffer_), map_path_(map_path)
 {
   path_pub_ = nh_.advertise<nav_msgs::Path>("/pub_gps_path/gps_path",1);
   setParam();
@@ -42,10 +42,10 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
       "save_poses_with_time", &PubGpsPath::SaveDataSrv, this));
   gps_sub_ = nh_.subscribe<gps_common::GPSFix>("/jzhw/gps/fix", 3,
                                           &PubGpsPath::handleGps, this);
-  lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/pointcloud_front", 3,
-                                          &PubGpsPath::handlePointcloud, this);
-  odom_frame_ = "odom";
-  base_frame_ = "base_footprint";
+//   lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/pointcloud_front", 3,
+//                                           &PubGpsPath::handlePointcloud, this);
+  odom_frame_ = "map";
+  base_frame_ = "base_link";
   lidar_frame_ = "lidar_link";
 }
 
@@ -205,7 +205,7 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
   Rigid3d base2fix =gps_to_base_init_* fix_pose1 * northGps2northBase.inverse();
 //   cout << "base2map_gps:" << base2map_gps <<endl;
   Rigid3d base_to_map_gps = fix_in_map_ * base2fix;
-
+cout << "base2map_gps:" << base_to_map_gps <<endl;
   double yaw_corrected = fix_frame_in_map_yaw_ - dip;
 //   
   Eigen::Quaterniond q_corrected = eul2quat(Eigen::Vector3d(yaw_corrected,0,0));
@@ -225,9 +225,12 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
       path_pub_.publish(gps_path_);
     }
   }
-  times_.push(valid_msg_.header.stamp);
-  poses_with_time_[times_.back()].push_back(base_to_map_gps);
-  
+  if((last_rtk_pose_.inverse() * base_to_map_gps).t.norm() < 1.0)
+  {
+    times_.push(valid_msg_.header.stamp);
+    poses_with_time_[times_.back()].push_back(base_to_map_gps);
+  }
+  last_rtk_pose_ = base_to_map_gps;
   while(times_.size() >0 ){
     geometry_msgs::TransformStamped base2odom;
     try
@@ -365,20 +368,20 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
   }
   outFile.close();
   
-  io::ProtoStreamWriter writer("/home/cyy/1.pbstream");
-  mapping::proto::SerializationHeader header;
-  header.set_format_version(kMappingStateSerializationFormatVersion);
-  writer.WriteProto(header);
-  int k = 0;
-  for (const auto& node : cloud_with_time_) {
-    SerializedData proto;
-    auto* const node_proto = proto.mutable_node();
-    node_proto->mutable_node_id()->set_trajectory_id(0);
-    node_proto->mutable_node_id()->set_node_index(k++);
-    *node_proto->mutable_node_data() = mapping::ToProto(node.second);
-    writer.WriteProto(proto);
-  }
-  writer.Close();
+//   io::ProtoStreamWriter writer("/home/cyy/1.pbstream");
+//   mapping::proto::SerializationHeader header;
+//   header.set_format_version(kMappingStateSerializationFormatVersion);
+//   writer.WriteProto(header);
+//   int k = 0;
+//   for (const auto& node : cloud_with_time_) {
+//     SerializedData proto;
+//     auto* const node_proto = proto.mutable_node();
+//     node_proto->mutable_node_id()->set_trajectory_id(0);
+//     node_proto->mutable_node_id()->set_node_index(k++);
+//     *node_proto->mutable_node_data() = mapping::ToProto(node.second);
+//     writer.WriteProto(proto);
+//   }
+//   writer.Close();
   cout <<"save done!" <<endl;
 }
 
@@ -386,7 +389,7 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "pub_gps_path_node");
   ros::NodeHandle n;
-  string map_name = "/home/cyy/map/puyan_around";
+  string map_name = "/home/cyy/map/puyan104";
   PubGpsPath gps(n,map_name);
   ros::spin();
   return 1;

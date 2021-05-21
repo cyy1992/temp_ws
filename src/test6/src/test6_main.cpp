@@ -102,27 +102,56 @@ void HandleNlink(const nlink_parser::LinktrackNodeframe2::ConstPtr& msg)
     cout << x_k.transpose() <<endl;
   }
 }
+
+#include <vtr_msgs/SetInitialPose.h>
+ros::ServiceServer server_;
+int checkEnd()
+{
+  int i=0x12345678;
+  char *c=(char *)&i;
+  return(*c==0x12);
+}
+
+bool setInitPose(vtr_msgs::SetInitialPose::Request& request, 
+                 vtr_msgs::SetInitialPose::Response& response)
+{
+  cout << "manual localization type: " << request.type << "\n reference_id:" << request.base2map.reference_id 
+    << "\n pose_valid:" << request.base2map.pose_valid << "\nrequest base2reference pose: " 
+    << "\n position(x,y,z):" <<request.base2map.pose.pose.position.x <<", "  
+    << request.base2map.pose.pose.position.y << ", " << request.base2map.pose.pose.position.z <<"\t orientation(x,y,z,w):"
+    << request.base2map.pose.pose.orientation.x<< ", "  << request.base2map.pose.pose.orientation.y<<"," 
+    << request.base2map.pose.pose.orientation.z<< ", "  << request.base2map.pose.pose.orientation.w <<endl;
+  return true;
+}
+
 int main(int argc, char** argv)
 {
+  if( 1&&sqrt(pow(30,2)+pow(10,2)+pow(10,2)) < 10)
+    cout << sqrt(pow(30,2)+pow(10,2)+pow(10,2) )<<endl;
+  cout << checkEnd() << endl;
   ros::init(argc,argv,"test66");
   ros::NodeHandle n;
-  navsat_pub_ = n.advertise<sensor_msgs::NavSatFix>("/jzhw/navsat", 1);
-  dis_pub_ = n.advertise<geometry_msgs::Point>("dis_point",1);
-  gps_sub_ = n.subscribe("/nlink_linktrack_nodeframe2", 5, HandleNlink);
+  server_ = n.advertiseService("/mark_localization/initial_pose1", setInitPose);
   ros::spin();
-  ofstream outFile1,outFile2;
-  //连续写入
-  outFile1.open("/home/cyy/distances.txt", std::ios::out);
-  for(auto it:distances_)
-    outFile1 << it << endl;
-  outFile1.close();
-  
-  outFile2.open("/home/cyy/det_times.txt", std::ios::out);
-  for(auto it:det_times_)
-    outFile2 << it << endl;
-  outFile2.close();
-  return 0;
+  return 1;
 }
+//   navsat_pub_ = n.advertise<sensor_msgs::NavSatFix>("/jzhw/navsat", 1);
+//   dis_pub_ = n.advertise<geometry_msgs::Point>("dis_point",1);
+//   gps_sub_ = n.subscribe("/nlink_linktrack_nodeframe2", 5, HandleNlink);
+//   ros::spin();
+//   ofstream outFile1,outFile2;
+//   //连续写入
+//   outFile1.open("/home/cyy/distances.txt", std::ios::out);
+//   for(auto it:distances_)
+//     outFile1 << it << endl;
+//   outFile1.close();
+//   
+//   outFile2.open("/home/cyy/det_times.txt", std::ios::out);
+//   for(auto it:det_times_)
+//     outFile2 << it << endl;
+//   outFile2.close();
+//   return 0;
+// }
 //   vector<float> temp1, temp2, temp3;
 //   steady_clock::time_point t1 = steady_clock::now();
 //   fillVector(temp1);

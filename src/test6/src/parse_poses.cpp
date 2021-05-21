@@ -72,6 +72,8 @@ void ParsePoses::ReadData(const string& file1, const string& file2)
       fi1 >> q[0] >> q[1] >> q[2] >> q[3];
       Eigen::Quaterniond q_temp2(q[0] , q[1] , q[2] ,q[3]);
       Rigid3d lidar_pose(q_temp2,t);
+      if(t(0) > 1e8 || t(1) > 1e8 ||t(2) > 1e8)
+        continue;
       poses_with_time_[time].push_back(gps_pose);
       poses_with_time_[time].push_back(lidar_pose);
     }
@@ -95,6 +97,8 @@ void ParsePoses::ReadData(const string& file1, const string& file2)
       fi2 >> q[0] >> q[1] >> q[2] >>q[3];
       Eigen::Quaterniond q_temp2(q[0] , q[1] , q[2] ,q[3]);
       Rigid3d lidar_pose(q_temp2,t);
+      if(t(0) > 1e8 || t(1) > 1e8 ||t(2) > 1e8)
+        continue;
       poses_with_time_[time].push_back(lidar_pose);
     }
   }
@@ -107,10 +111,31 @@ void ParsePoses::ReadData(const string& file1, const string& file2)
       poses_with_time_.erase(poses_with_time_.find(it.first));
     }
   }
-//   poses_with_time_.erase(poses_with_time_.rbegin());
   cout << poses_with_time_.size()<<endl;
+  saveAsKittiFormat();
   fi2.close();
 }
+
+void ParsePoses::saveAsKittiFormat()
+{
+  vector<string> save_file_names{"kitti_rtk", "kitti_lego", "kitti_lio"};
+  for(int i =0; i< save_file_names.size(); i++){
+    ofstream outFile1;
+    outFile1.open("/home/cyy/" + save_file_names[i] + ".txt", std::ios::out);
+    for(auto it : poses_with_time_)
+    {
+      Rigid3d pose = it.second[i];
+      Eigen::Matrix3d rot = pose.q.toRotationMatrix();
+      outFile1 << rot(0,0) << " "<< rot(0,1) << " "<< rot(0,2) << " "<< pose.t.x() << " " 
+        << rot(1,0) << " "<< rot(1,1) << " "<< rot(1,2) << " "<< pose.t.y() << " " 
+        << rot(2,0) << " "<< rot(2,1) << " "<< rot(2,2) << " "<< pose.t.z() << endl;
+      
+    }
+    outFile1.close();
+  }
+  cout << "write done!" <<endl;
+}
+
 sensor_msgs::PointCloud2 ParsePoses::ToPointCloud2Msg(const sensor::PointCloud& cloud)
 {
   sensor_msgs::PointCloud2 cloud_msg;
