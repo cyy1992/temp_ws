@@ -16,15 +16,81 @@
  */
 
 #include "pcl_project.h"
-
+#include <pcl/registration/transformation_estimation_point_to_plane_lls.h>
+#include <pcl/registration/transformation_estimation_point_to_plane.h>
+#include <pcl/registration/transformation_estimation_point_to_plane_lls_weighted.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
+#include <pcl/filters/voxel_grid.h>
+#include <math.h>
+#include <algorithm>
+#include "pcl/registration/correspondence_estimation_normal_shooting.h"
+#include "pcl/registration/correspondence_rejection_surface_normal.h"
+#include "pcl/registration/correspondence_rejection_features.h"
+#include "pcl/visualization/cloud_viewer.h"
 using namespace std;
 using namespace limlog;
 using namespace cv;
+using namespace pcl;
+Rigid3d global_submap_pose({-5.91763, 203.921, 0.871792}, {0.980257, 0.0067101, -0.00144523, 0.197608});
+Rigid3d global_node_pose({-1.42752, 207.395, 0.980616},{0.102625, 0.00182981, 0.00670749, -0.994696});
+Eigen::Quaterniond gravity_alignment(-0.141539, 0,0,-0.989933);
 PclProject::PclProject()
 {
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+
+  //*打开点云文件
+  if (pcl::io::loadPCDFile<pcl::PointXYZI>("/home/cyy/map/pcd3d/pcd_frames/0/submap.pcd", *cloud) == -1) {
+      PCL_ERROR("Couldn't read file rabbit.pcd\n");
+  }
+  pcl::visualization::CloudViewer viewer("cloud viewer");
+  viewer.showCloud(cloud);
+  while (!viewer.wasStopped()) {
+
+  }
+  system("pause");
   point_cloud_sub_ = nh_.subscribe("/front2/depth/color/points",1,&PclProject::HandleDepthPointCloud,this);
+  cloud_sub_ = nh_.subscribe("/pointcloud_front",1,&PclProject::HandlePointCloud,this);
+  src_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("src_cloud", 1);
+  tgt_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("tgt_cloud", 1);
+  final_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("final_cloud", 1);
+  
+  transformed_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("transformed_cloud", 1);
   max_dst_error_plane_ = 0.005;
   max_dst_error_line_ = 0.005;
+  wall_timer_ = nh_.createWallTimer(::ros::WallDuration(0.2),
+                          &PclProject::display, this);
+  target_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>());
+  src_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
+  transformed_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
+  if(1)
+  {
+    read_pcd("/home/cyy/submap_37.pcd",target_cloud_);
+    read_pcd("/home/cyy/node_1820.pcd",src_cloud_);
+    cout << "submap points size: " << target_cloud_->size() <<endl;
+    
+    Rigid3d gravity({0,0,0},gravity_alignment);
+    Rigid3d node2submap_pose = global_submap_pose.inverse() * global_node_pose;
+    
+    
+    cout << global_submap_pose <<endl;
+    cout << global_node_pose <<endl;
+    cout << node2submap_pose <<endl;
+    PointToPlaneIcpMatcher(src_cloud_,target_cloud_);
+    Eigen::Matrix4d trans;
+    trans << 0-0.991356, 0-0.126272, -0.0356134, 0001.62393,
+      0000.12381, 00-0.99021 ,00.0644582, 00-2.44006,
+      0-0.043404, 00.0594917, 000.997285, 00.0712701,
+      0000000000, 0000000000, 0000000000 ,0000000001;
+    for(auto p: src_cloud_->points)
+    {
+      Eigen::Vector4d p1(p.x,p.y,p.z,1);
+      Eigen::Vector4d p2 = trans * p1;
+      pcl::PointXYZ p3;
+      p3.x = p2(0);p3.y = p2(1);p3.z = p2(2);
+      transformed_cloud_->points.push_back(p3);
+    }
+    
+  }
 }
 
 PclProject::~PclProject()
@@ -102,6 +168,7 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
   cout << "coming!" <<endl;
   pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
   ToPCL(msg, temp_cloud);
+
   std::vector<std::vector<float>> Coffis;
   std::vector <pcl::PointCloud<pcl::PointXYZ>::Ptr> result_clouds;
   const unsigned int threshold = temp_cloud->size() / 10;
@@ -238,6 +305,123 @@ void PclProject::HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr&
   p2.addPointCloud(temp_cloud, src_h, "source");
   p2.spin();
   
+}
+
+void PclProject::read_pcd(string pcd_path,pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path, *cloud) == -1) {
+    PCL_ERROR("Couldn't read file rabbit.pcd\n");
+    //return(-1);
+  }
+  std::cout << cloud->points.size() << std::endl;
+}
+
+
+inline void PointCloud2ToPointXYZ(const sensor_msgs::PointCloud2::ConstPtr& msg, 
+                             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+  sensor_msgs::PointCloud2 cloud_msg = *msg;
+  int range_size = cloud_msg.width * cloud_msg.height;
+  if(range_size > 0)
+  {
+    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud_msg, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud_msg, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud_msg, "z");
+//     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1()
+    pcl::PointCloud<pcl::PointXYZ>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZ>());
+//     PointCloud2ToPointXYZ(msg, tmp);
+    
+    tmp->points.reserve(range_size);
+
+    for(int i = 0; i < range_size; i++)
+    {
+      pcl::PointXYZ point;
+      point.x = *iter_x;
+      point.y = *iter_y;
+      point.z = *iter_z;
+      ++iter_x;
+      ++iter_y;
+      ++iter_z;
+      if(isnan(point.x) || isnan(point.y) || isnan(point.z))
+        continue;
+      if(point.x * point.x + point.y * point.y +point.z * point.z > 20*20)
+        continue;
+      
+      tmp->points.push_back(point);
+    }
+    pcl::VoxelGrid<pcl::PointXYZ> downSizeFilter;
+    downSizeFilter.setLeafSize(0.2, 0.2, 0.2);
+    downSizeFilter.setInputCloud(tmp);
+    downSizeFilter.filter(*cloud);
+  }
+}
+void PclProject::HandlePointCloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
+{
+  static int k=0;
+  if(k == 0)
+  {
+    cout << "set target cloud"<<endl;
+    
+    PointCloud2ToPointXYZ(msg, target_cloud_);
+  }
+  else if(k%5 == 0)
+  {
+    cout << "set src cloud"<<endl;
+    PointCloud2ToPointXYZ(msg, src_cloud_);
+    Eigen::Matrix4d src2tgt = PointToPlaneIcpMatcher(src_cloud_,target_cloud_);
+    Eigen::Matrix3d rotation = src2tgt.block(0,0,3,3);
+    Eigen::Vector3d translation(src2tgt(0, 3), src2tgt(1, 3), src2tgt(2, 3));
+    cout << src2tgt <<endl;
+    cout << rotation <<endl;
+    cout << translation <<endl;
+    for(const auto &it:src_cloud_->points)
+    {
+      Eigen::Vector3d p1(it.x,it.y,it.z);
+      Eigen::Vector3d p2 = rotation * p1 + translation;
+      pcl::PointXYZ p3;
+      p3.x = p2(0);p3.y = p2(1);p3.z = p2(2);
+      transformed_cloud_->points.push_back(p3);
+    }
+  }
+  if(!src_cloud_->points.empty()){
+    sensor_msgs::PointCloud2 tempCloud;
+    pcl::toROSMsg(*target_cloud_, tempCloud);
+    tempCloud.header.frame_id = "base_footprint";
+    tempCloud.header.stamp = ros::Time::now();
+    tgt_pub_.publish(tempCloud);
+    
+    sensor_msgs::PointCloud2 tempCloud1;
+    pcl::toROSMsg(*src_cloud_, tempCloud1);
+    tempCloud1.header.frame_id = "base_footprint";
+    tempCloud1.header.stamp = ros::Time::now();
+    src_pub_.publish(tempCloud1);
+    
+    sensor_msgs::PointCloud2 tempCloud2;
+    pcl::toROSMsg(*final_cloud_, tempCloud2);
+    tempCloud2.header.frame_id = "base_footprint";
+    tempCloud2.header.stamp = ros::Time::now();
+    final_pub_.publish(tempCloud2);
+    
+    sensor_msgs::PointCloud2 tempCloud22;
+    pcl::toROSMsg(*transformed_cloud_, tempCloud22);
+    tempCloud22.header.frame_id = "base_footprint";
+    tempCloud22.header.stamp = ros::Time::now();
+    transformed_pub_.publish(tempCloud22);
+    
+  }
+  if(k <7)
+    k++;
+  
+}
+
+void PclProject::pubPointCloud2(const ros::Publisher& pub, PointCloud< PointXYZ >::Ptr cloud)
+{
+  sensor_msgs::PointCloud2 tempCloud22;
+    pcl::toROSMsg(*cloud, tempCloud22);
+    tempCloud22.header.frame_id = "base_footprint";
+    tempCloud22.header.stamp = ros::Time::now();
+    pub.publish(tempCloud22);
 }
 
 void PclProject::GetCamToPlane(const Point3f& vector_x, const float* plane_index, 
@@ -430,6 +614,146 @@ vector< int > PclProject::FindWalls(const vector< pcl::PointCloud< pcl::PointXYZ
       break;
   }
   return walls_index;
+}
+
+Eigen::Matrix4d PclProject::PointToPlaneIcpMatcher (pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud1, 
+                                                    pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud2) 
+{
+  
+  cout << "start matching..." <<endl;
+  pcl::PointCloud<pcl::PointNormal>::Ptr src(new pcl::PointCloud<pcl::PointNormal>);
+  pcl::copyPointCloud(*cloud1, *src);
+//   pcl::PointCloud<pcl::PointNormal>::Ptr tgt(new pcl::PointCloud<pcl::PointNormal>);
+//   pcl::copyPointCloud(*cloud2, *tgt);
+  
+//   pcl::NormalEstimation<pcl::PointNormal, pcl::PointNormal> norm_est;
+//   norm_est.setSearchMethod (pcl::search::KdTree<pcl::PointNormal>::Ptr (new pcl::search::KdTree<pcl::PointNormal>));
+//   norm_est.setKSearch (10);
+//   norm_est.setInputCloud (tgt);
+//   norm_est.compute (*tgt);
+//   
+//   pcl::NormalEstimation<pcl::PointNormal, pcl::PointNormal> norm_est2;
+//   norm_est2.setSearchMethod (pcl::search::KdTree<pcl::PointNormal>::Ptr (new pcl::search::KdTree<pcl::PointNormal>));
+//   norm_est2.setKSearch (10);
+//   norm_est2.setInputCloud (src);
+//   norm_est2.compute (*src);
+//   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp1;
+//   icp1.setMaximumIterations (10);
+//   icp1.setInputSource (cloud1);
+//   icp1.setInputTarget (cloud2);
+//   pcl::PointCloud<pcl::PointXYZ> output1;
+//   icp1.align(output1);
+//   icp1.getFinalTransformation();
+//   icp1.getFitnessScore();
+//   final_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
+//   pcl::copyPointCloud(output1, *final_cloud_);
+//   return icp1.getFinalTransformation().cast<double>();;
+  
+  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
+  pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+  //建立kdtree来进行近邻点集搜索
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+  //为kdtree添加点云数据
+  //点云法向计算时，需要搜索的近邻点大小
+  n.setKSearch(20);
+  //开始进行法向计算
+  
+//     tree->setInputCloud(cloud1);
+// 
+//   n.setInputCloud(cloud1);
+//   n.setSearchMethod(tree);
+// 
+//   n.compute(*normals);
+  //* normals should not contain the point normals + surface curvatures
+  //将点云数据与法向信息拼接
+//   pcl::PointCloud<pcl::PointNormal>::Ptr init_trans_cloud_normals(new pcl::PointCloud<pcl::PointNormal>);
+//   pcl::concatenateFields(*cloud1, *normals, *init_trans_cloud_normals);
+
+  pcl::PointCloud<pcl::Normal>::Ptr normals1(new pcl::PointCloud<pcl::Normal>);
+  tree->setInputCloud(cloud2);
+  n.setInputCloud(cloud2);
+  n.setSearchMethod(tree);
+  n.compute(*normals1);
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_model_normals(new pcl::PointCloud<pcl::PointNormal>);
+  pcl::concatenateFields(*cloud2, *normals1, *cloud_model_normals);
+
+  pcl::IterativeClosestPoint<pcl::PointNormal, pcl::PointNormal> icp;
+  typedef pcl::registration::TransformationEstimationPointToPlane<pcl::PointNormal, pcl::PointNormal> PointToPlane;
+//   typedef pcl::registration::TransformationEstimationSymmetricPointToPlaneLLS<pcl::PointNormal, pcl::PointNormal> SymmPointToPlane;
+
+  boost::shared_ptr<PointToPlane> point_to_plane(new PointToPlane);
+  icp.setTransformationEstimation(point_to_plane);
+  icp.setInputSource(src);
+  icp.setInputTarget(cloud_model_normals);
+//   icp.setRANSACOutlierRejectionThreshold(0.5);
+//   icp.setRANSACIterations(100);
+  icp.setMaximumIterations(10);
+  icp.setTransformationEpsilon(1e-8);
+  icp.setEuclideanFitnessEpsilon(0.1);
+  pcl::PointCloud<pcl::PointNormal> output;
+    Rigid3d gravity({0,0,0},gravity_alignment);
+    Rigid3d node2submap_pose = global_submap_pose.inverse() * global_node_pose;
+  Eigen::Matrix4d prior(Eigen::Matrix4d::Identity());
+  prior.topLeftCorner<3,3>() = (node2submap_pose.rotation()).toRotationMatrix();
+  prior(0,3) =  node2submap_pose.translation().x();
+  prior(1,3) =  node2submap_pose.translation().y();
+  prior(2,3) =  node2submap_pose.translation().z(); 
+  cout << "prior : \n" << prior <<endl;
+  pcl::registration::CorrespondenceEstimationNormalShooting<pcl::PointNormal, pcl::PointNormal, pcl::PointNormal>::Ptr 
+    ce(new pcl::registration::CorrespondenceEstimationNormalShooting<pcl::PointNormal,pcl::PointNormal,pcl::PointNormal>);
+//   icp.setCorrespondenceEstimation(ce);
+
+  // Add rejector
+//   pcl::registration::CorrespondenceRejectorSurfaceNormal::Ptr 
+//     rej(new pcl::registration::CorrespondenceRejectorSurfaceNormal);
+// //   rej->setThreshold (0); //Could be a lot of rotation -- just make sure they're at least within 0 degrees
+// //   rej->set
+// //     rej->setInputNormals(cloud_model_normals);
+//     rej->setThreshold (0); 
+//   icp.addCorrespondenceRejector (rej);
+
+  cout << "111" <<endl;
+  icp.align(output,prior.cast<float>());
+//   for (int iter = 0; iter < 4; iter++)
+//   {
+//     bool force_cache = (bool) iter/2;
+//     bool force_cache_reciprocal = (bool) iter%2;
+//     pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+//     // Ensure that, when force_cache is not set, we are robust to the wrong input
+//     if (force_cache)
+//       tree->setInputCloud (cloud_model_normals);
+//     icp.setSearchMethodTarget (tree, force_cache);
+// 
+//     pcl::search::KdTree<PointT>::Ptr tree_recip (new pcl::search::KdTree<PointT>);
+//     if (force_cache_reciprocal)
+//       tree_recip->setInputCloud (src);
+//     icp.setSearchMethodSource (tree_recip, force_cache_reciprocal);
+// 
+//     // Register
+//     icp.align (output);
+// //     EXPECT_EQ (int (output.points.size ()), int (cloud_source.points.size ()));
+// //     EXPECT_LT (reg.getFitnessScore (), 0.005);
+//   }
+  cout << "111" <<endl;
+  final_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::copyPointCloud(output, *final_cloud_);
+  std::cout <<icp.getFitnessScore() <<endl;
+//   if(icp.getFitnessScore() > 0.2)
+//     return nullptr;
+  std::cout <<icp.hasConverged()  << ", " << icp.getFinalTransformation() << std::endl; 
+  return icp.getFinalTransformation().cast<double>();;
+  //     
+}
+
+void PclProject::display(const ros::WallTimerEvent& unused_timer_event)
+{
+  if(!transformed_cloud_->points.empty())
+  {
+    pubPointCloud2(src_pub_, src_cloud_);
+    pubPointCloud2(tgt_pub_, target_cloud_);
+    pubPointCloud2(transformed_pub_, transformed_cloud_);
+//     pubPointCloud2(transformed_pub_, final_cloud_);
+  }
 }
 
 int main(int argc, char** argv){

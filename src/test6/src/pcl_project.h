@@ -26,6 +26,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/common/common.h>
 #include <pcl/registration/icp.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/segmentation/sac_segmentation.h>
@@ -33,22 +34,25 @@
 #include <pcl/search/kdtree.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/extract_indices.h>
-
+#include <pcl/features/normal_3d.h>
 #include <opencv2/opencv.hpp>
-
+#include <pcl_conversions/pcl_conversions.h>
 #include <limlog/Log.h>
 
+#include "transform.h"
 class PclProject
 {
 public:
+  typedef pcl::PointNormal PointT;
   PclProject();
   ~PclProject();
   
   void HandleDepthPointCloud(const sensor_msgs::PointCloud2::ConstPtr& msg);
-  
+  void HandlePointCloud(const sensor_msgs::PointCloud2::ConstPtr& msg);
 private:
-  
-  
+  void read_pcd(std::string pcd_path,pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+  Eigen::Matrix4d PointToPlaneIcpMatcher (pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud1, 
+                              pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud2);
   void ToPCL(const sensor_msgs::PointCloud2::ConstPtr& input, pcl::PointCloud<pcl::PointXYZ>::Ptr& temp_cloud);
   void GetPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
                  std::vector<std::vector<float>> &Coffis, 
@@ -62,10 +66,15 @@ private:
   void FitPlane(std::vector<Eigen::Vector3f>& plane_points, float* plane12);
   void GetCamToPlane(const cv::Point3f& vector_x, const float* plane_index, cv::Mat& rotation, cv::Mat& translation,const bool& is_reverse);
   std::vector<Eigen::Vector3f> ToEigenPoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud);
-  
+  void display(const ::ros::WallTimerEvent& unused_timer_event);
+  void pubPointCloud2(const ros::Publisher& pub, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   ros::NodeHandle nh_;
-  ros::Subscriber point_cloud_sub_;
+  ros::Subscriber point_cloud_sub_, cloud_sub_;
+  ros::Publisher src_pub_,tgt_pub_,final_pub_,transformed_pub_;
   float max_dst_error_plane_,max_dst_error_line_;
+  
+  pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud_,src_cloud_,final_cloud_,transformed_cloud_;
+  ros::WallTimer wall_timer_;
 };
 
 #endif // PCLPROJECT_H
