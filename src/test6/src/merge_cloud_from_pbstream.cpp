@@ -31,8 +31,8 @@ MergeCloudFromPbstream::MergeCloudFromPbstream(const ros::NodeHandle& n):nh_(n),
 {
   cloud_pub_ =
       nh_.advertise<sensor_msgs::PointCloud2>("/merge_point_cloud", 1);
-  timer_pub_ = nh_.createWallTimer(ros::WallDuration(0.2),
-                                            &MergeCloudFromPbstream::pubCloud,this);
+//   timer_pub_ = nh_.createWallTimer(ros::WallDuration(0.2),
+//                                             &MergeCloudFromPbstream::pubCloud,this);
   cloud_.reset(new pcl::PointCloud<pcl::PointXYZI>);
   
   pose_sub_.subscribe(nh_, "/cartographer_ros/scan_pose", 3);
@@ -212,17 +212,27 @@ bool MergeCloudFromPbstream::readFromPbstream(std::string filename)
 void MergeCloudFromPbstream::handleTopics(const geometry_msgs::PoseStampedConstPtr& pose_msg, 
                                           const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
+  return;
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cur_temp_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::fromROSMsg(*cloud_msg, *cur_temp_cloud);
   pcl::PointCloud<pcl::PointXYZI>::Ptr cur_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::fromROSMsg(*cloud_msg, *cur_cloud);
+  for(auto point :cur_temp_cloud->points)
+  {
+    if(point.z > 0.2 || (point.x * point.x +point.y * point.y ) > 20.0)
+      continue;
+    cur_cloud->points.push_back(point);
+  }
   pcl::PointCloud<pcl::PointXYZI>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>);
   Eigen::Affine3d transform_2;
   tf::poseMsgToEigen(pose_msg->pose,transform_2);
   pcl::transformPointCloud (*cur_cloud, *transformed_cloud, transform_2);
+  
   *cloud_ += *transformed_cloud;
   sensor_msgs::PointCloud2 laserCloudTemp;
   downSizeFilter_.setInputCloud(cloud_);
   pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZI>);
   downSizeFilter_.filter(*filtered_cloud);
+  
   if(cloud_pub_.getNumSubscribers())
   {
     pcl::toROSMsg(*filtered_cloud, laserCloudTemp);

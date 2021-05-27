@@ -35,6 +35,9 @@
 // #include <glog/logging.h>
 #include <chrono>
 #include <thread>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
 
 class PointcloudTrans
 {
@@ -44,8 +47,14 @@ public:
   
   void HandleCloudFront(const sensor_msgs::PointCloud2::ConstPtr& msg);
   void HandleCloudBack(const sensor_msgs::PointCloud2::ConstPtr& msg);
+  void calibRollPitchZ(const geometry_msgs::TransformStamped& prior_transform, 
+                       const sensor_msgs::PointCloud2& cloud,
+                       geometry_msgs::TransformStamped& result_transform);
 private:
   ros::NodeHandle nh_;
+  tf2_ros::Buffer tfBuffer_;
+  tf2_ros::TransformListener tfListener_;
+  
   ros::Subscriber cloud1_sub_,cloud2_sub_;
   ros::Publisher cloud1_pub_,cloud2_pub_;
 };

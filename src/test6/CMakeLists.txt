@@ -17,6 +17,9 @@ find_package(yaml-cpp REQUIRED)
 # find_package(PkgConfig)
 find_package(csm_eigen REQUIRED)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules)
+
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   eigen_conversions
@@ -38,7 +41,22 @@ find_package(catkin REQUIRED COMPONENTS
   libpointmatcher_ros
   gps_common
   cartographer_ros_msgs
+  nlink_parser
+  cartographer_ros_msgs
 )
+
+find_package(Abseil REQUIRED)
+find_package(cartographer REQUIRED)
+# include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
+find_package(cartographer_ros REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system iostreams)
+find_package(libnabo REQUIRED PATHS ${LIBNABO_INSTALL_DIR})
+find_package(PCL REQUIRED COMPONENTS common io console)
+find_package(yaml-cpp REQUIRED)
+find_package(csm_eigen REQUIRED)
+
 add_service_files(
   DIRECTORY srv
   FILES
@@ -65,7 +83,7 @@ include_directories(include
   ${cartographer_ros_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${csm_eigen_INCLUDE_DIRS}
-  "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
+#   "${CARTOGRAPHER_CMAKE_DIR}/../../../include"
 )
 # include_directories(
 # BEFORE ${GLOG_INCLUDE_DIRS})
@@ -84,10 +102,6 @@ ${csm_eigen_LIBRARY_DIRS}
 ${libpointmatcher_LIBRARIES}
 ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 )
-
-# add_executable(test6 src/test6_main.cpp)
-# target_link_libraries(test6 ${catkin_LIBRARIES})
-
 
 # add_executable(detect_tags src/detect_tag.cpp)
 # target_link_libraries(detect_tags ${catkin_LIBRARIES}  ${OpenCV_LIBRARIES} apriltag_mit)

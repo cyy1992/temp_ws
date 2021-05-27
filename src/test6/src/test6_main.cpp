@@ -1,17 +1,182 @@
-// #include <opencv2/core/core.hpp>
-// #include<opencv2/opencv.hpp>
-// #include<iostream>
-// #include <string>
-// using namespace cv;
-// using namespace std;
-// int main()
-// {
-//     Mat image=imread("/home/cyy/map/2dtest3/bool_image.png");
-//     if(image.empty())
-//     {
-//         cout<<"image is empty"<<endl;
-//         return 0;
-//     }
+#include <opencv2/core/core.hpp>
+#include<opencv2/opencv.hpp>
+#include<iostream>
+#include <fstream>
+#include <string>
+#include <chrono>
+#include <ros/ros.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <gps_common/GPSFix.h>
+#include <nlink_parser/LinktrackNodeframe2.h>
+#include <geometry_msgs/Point.h>
+#include <eigen3/Eigen/Eigen>
+
+using namespace cv;
+using namespace std;
+using namespace std::chrono;
+
+void fillVector(vector<float>& temp)
+{
+  for(int i =0; i < 100000; i ++)
+    temp.push_back(1.222 + i);
+}
+
+ros::Subscriber gps_sub_;
+ros::Publisher navsat_pub_;
+ros::Publisher dis_pub_;
+void HandleGps(const gps_common::GPSFix::ConstPtr& msg)
+{
+  sensor_msgs::NavSatFix fix_msg;
+  fix_msg.header = msg->header;
+  fix_msg.latitude = msg->latitude;
+  fix_msg.longitude = msg->longitude;
+  fix_msg.altitude = msg->altitude;
+  fix_msg.position_covariance_type = 0;
+  fix_msg.header.frame_id = "fix_link";
+  navsat_pub_.publish(fix_msg);
+  
+}
+Eigen::Vector2d x_k;
+Eigen::Vector2d z_k;
+Eigen::Matrix2d A;
+Eigen::Vector2d H;
+
+Eigen::Matrix2d P_k;
+Eigen::Matrix2d Q_k;
+double R_k;
+Eigen::Vector2d K;
+bool initial_flag = true;
+float last_time = 0;
+std::vector<double> distances_;
+std::vector<double> det_times_;
+void HandleNlink(const nlink_parser::LinktrackNodeframe2::ConstPtr& msg)
+{
+  static float last_dist = -1;
+  geometry_msgs::Point p;
+  p.x = 0;
+  for(nlink_parser::LinktrackNode2 node: msg->nodes)
+  {
+    if(/*node.id == 1&&*/node.dis != 0 && last_dist != node.dis)
+    {
+      p.x = node.dis;
+      last_dist = node.dis;
+    }
+  }
+  
+  if(initial_flag)
+  {
+    initial_flag = false;
+    H << 1,0;
+    A << 1,0,0,1;
+    P_k << 1,0,0,1;
+    Q_k << 10,0,0,0.01;
+    R_k = 1;
+    x_k(0) = p.x;
+    x_k(1) = 0;
+    last_time = msg->system_time * 1.0 / 1000;
+    return;
+  }
+//   cout << p.x <<endl;
+//   static int kk = 0;
+//   p.x = kk++;
+  if(p.x !=0)
+  {
+    double det_time = msg->system_time * 1.0 / 1000 - last_time;
+    A(0,1) = det_time;
+    distances_.push_back(p.x);
+    det_times_.push_back(det_time);
+    
+    Eigen::Vector2d x_ = A * x_k;
+    Eigen::Matrix2d P_ = A * P_k * A.transpose() + Q_k;
+    double temp = P_(0,0);
+    double temp2 = 1.0 / (temp + R_k);
+    K = P_*H * temp2;
+    x_k = x_ + K *(p.x -x_(0) );
+    Eigen::Matrix2d k_h ;
+    k_h << K(0),0,K(1),0;
+    P_k = (Eigen::Matrix2d::Identity() - k_h) * P_;
+    last_time = msg->system_time * 1.0 / 1000;
+    p.y = p.x;
+    p.x = x_k(0);
+    dis_pub_.publish(p);
+    cout << x_k.transpose() <<endl;
+  }
+}
+
+#include <vtr_msgs/SetInitialPose.h>
+ros::ServiceServer server_;
+int checkEnd()
+{
+  int i=0x12345678;
+  char *c=(char *)&i;
+  return(*c==0x12);
+}
+
+bool setInitPose(vtr_msgs::SetInitialPose::Request& request, 
+                 vtr_msgs::SetInitialPose::Response& response)
+{
+  cout << "manual localization type: " << request.type << "\n reference_id:" << request.base2map.reference_id 
+    << "\n pose_valid:" << request.base2map.pose_valid << "\nrequest base2reference pose: " 
+    << "\n position(x,y,z):" <<request.base2map.pose.pose.position.x <<", "  
+    << request.base2map.pose.pose.position.y << ", " << request.base2map.pose.pose.position.z <<"\t orientation(x,y,z,w):"
+    << request.base2map.pose.pose.orientation.x<< ", "  << request.base2map.pose.pose.orientation.y<<"," 
+    << request.base2map.pose.pose.orientation.z<< ", "  << request.base2map.pose.pose.orientation.w <<endl;
+  return true;
+}
+
+int main(int argc, char** argv)
+{
+  if( 1&&sqrt(pow(30,2)+pow(10,2)+pow(10,2)) < 10)
+    cout << sqrt(pow(30,2)+pow(10,2)+pow(10,2) )<<endl;
+  cout << checkEnd() << endl;
+  ros::init(argc,argv,"test66");
+  ros::NodeHandle n;
+  server_ = n.advertiseService("/mark_localization/initial_pose1", setInitPose);
+  ros::spin();
+  return 1;
+}
+//   navsat_pub_ = n.advertise<sensor_msgs::NavSatFix>("/jzhw/navsat", 1);
+//   dis_pub_ = n.advertise<geometry_msgs::Point>("dis_point",1);
+//   gps_sub_ = n.subscribe("/nlink_linktrack_nodeframe2", 5, HandleNlink);
+//   ros::spin();
+//   ofstream outFile1,outFile2;
+//   //连续写入
+//   outFile1.open("/home/cyy/distances.txt", std::ios::out);
+//   for(auto it:distances_)
+//     outFile1 << it << endl;
+//   outFile1.close();
+//   
+//   outFile2.open("/home/cyy/det_times.txt", std::ios::out);
+//   for(auto it:det_times_)
+//     outFile2 << it << endl;
+//   outFile2.close();
+//   return 0;
+// }
+//   vector<float> temp1, temp2, temp3;
+//   steady_clock::time_point t1 = steady_clock::now();
+//   fillVector(temp1);
+//   steady_clock::time_point t2 = steady_clock::now();
+//   duration<double> time_span = 
+//       duration_cast<duration<double>>(t2 - t1);
+//   cout << temp1.capacity()<<endl;
+//   temp2 = temp1;    
+//   temp1.reserve(200000);
+//   cout << temp1.capacity()<<endl;
+//   steady_clock::time_point t3 = steady_clock::now();
+//   fillVector(temp1);
+//   steady_clock::time_point t4 = steady_clock::now();
+//   
+//   duration<double> time_span2 = 
+//       duration_cast<duration<double>>(t4 - t3);
+//   
+//   steady_clock::time_point t5 = steady_clock::now();
+//   temp2.insert(temp2.end(), temp2.begin(), temp2.end());
+//   steady_clock::time_point t6 = steady_clock::now();
+//   
+//   duration<double> time_span3 = 
+//       duration_cast<duration<double>>(t6 - t5);
+//   cout << time_span.count() <<", " << time_span2.count() <<", " << time_span3.count()<<endl;
+
 //     Mat mask = Mat(Size(image.cols, image.rows),CV_8UC1,Scalar(255)); 
 //     Point p1 = { 25, 60 };  Point p2 = { 50, 110 };  Point p4 = { 100, 60 }; Point p3 = { 100, 110 }; /*Point p5 = { 50, 10 };*/
 //     vector<Point> contour;
@@ -362,38 +527,38 @@
 //   ros::spin();
 //   return 1;
 // }
-#include <iostream>
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/console/print.h>
-#include <pcl/console/parse.h>
-#include <pcl/console/time.h>
-#include <pcl/io/vtk_lib_io.h>
-#include <pcl/io/vtk_io.h>
-#include <vtkPolyData.h>
-#include <vtkSmartPointer.h>
-#include <pcl/visualization/cloud_viewer.h>  
- #include <pcl/conversions.h>
-#include <opencv2/opencv.hpp>
-#include <stdio.h>
-using namespace pcl;
-using namespace pcl::io;
-using namespace pcl::console;
- using namespace std;
-int main()
-{
-  FILE *fp;
-  char buffer[20];
-
-  fp = popen("cat /home/cyy/jz_total_*.txt |grep calib | awk -F'==' '{print $2}'", "r");
-  if (fp != NULL)
-  {
-    while (fgets(buffer, 20, fp) != NULL)
-    {}
-    pclose(fp);
-  }
-  
-  cout << temp <<"."<<endl;
+// #include <iostream>
+// #include <pcl/io/pcd_io.h>
+// #include <pcl/io/ply_io.h>
+// #include <pcl/console/print.h>
+// #include <pcl/console/parse.h>
+// #include <pcl/console/time.h>
+// #include <pcl/io/vtk_lib_io.h>
+// #include <pcl/io/vtk_io.h>
+// #include <vtkPolyData.h>
+// #include <vtkSmartPointer.h>
+// #include <pcl/visualization/cloud_viewer.h>  
+//  #include <pcl/conversions.h>
+// #include <opencv2/opencv.hpp>
+// #include <stdio.h>
+// using namespace pcl;
+// using namespace pcl::io;
+// using namespace pcl::console;
+//  using namespace std;
+// int main()
+// {
+//   FILE *fp;
+//   char buffer[20];
+// 
+//   fp = popen("cat /home/cyy/jz_total_*.txt |grep calib | awk -F'==' '{print $2}'", "r");
+//   if (fp != NULL)
+//   {
+//     while (fgets(buffer, 20, fp) != NULL)
+//     {}
+//     pclose(fp);
+//   }
+//   
+//   cout << temp <<"."<<endl;
   // pcl::PolygonMesh mesh;
 
   // if (pcl::io::loadPLYFile("/media/cyy/CYY_DISK/others/bags/gps/out1.bag_points.ply", mesh))
@@ -431,42 +596,42 @@ int main()
 //     pcl::PCDWriter writer;
 //     writer.writeASCII("/media/cyy/CYY_DISK/others/bags/gps/data.pcd", point_cloud2);  
 //     return 0;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+//     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "temp_test");
-  ros::NodeHandle n;
-  client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
-  int i =0;
-  ros::Rate rate(5);
-  while(ros::ok())
-  {
-    rate.sleep();
-    cartographer_ros_msgs::SetSwitch srv;
-    if(i % 2 == 0)
-    {
-      srv.request.type = "LaserScanOdom";
-      srv.request.flag = true;
-      client_.call(srv);
-      srv.request.type = "StripLocalization";
-      srv.request.flag = false;
-      client_.call(srv);
-    }
-    else
-    {
-      srv.request.type = "LaserScanOdom";
-      srv.request.flag = false;
-      client_.call(srv);
-      srv.request.type = "StripLocalization";
-      srv.request.flag = true;
-      client_.call(srv);
-    }
-    cout <<"i:" <<i <<endl;
-    i++;
-    
-    ros::spinOnce();
-  }
-  return 1;
-  
-}
+// int main(int argc, char **argv)
+// {
+//   ros::init(argc, argv, "temp_test");
+//   ros::NodeHandle n;
+//   client_ = n.serviceClient<cartographer_ros_msgs::SetSwitch>("/mark_localization/set_mark_switch");
+//   int i =0;
+//   ros::Rate rate(5);
+//   while(ros::ok())
+//   {
+//     rate.sleep();
+//     cartographer_ros_msgs::SetSwitch srv;
+//     if(i % 2 == 0)
+//     {
+//       srv.request.type = "LaserScanOdom";
+//       srv.request.flag = true;
+//       client_.call(srv);
+//       srv.request.type = "StripLocalization";
+//       srv.request.flag = false;
+//       client_.call(srv);
+//     }
+//     else
+//     {
+//       srv.request.type = "LaserScanOdom";
+//       srv.request.flag = false;
+//       client_.call(srv);
+//       srv.request.type = "StripLocalization";
+//       srv.request.flag = true;
+//       client_.call(srv);
+//     }
+//     cout <<"i:" <<i <<endl;
+//     i++;
+//     
+//     ros::spinOnce();
+//   }
+//   return 1;
+//   
+// }

@@ -21,11 +21,20 @@
 #include <boost/iostreams/device/back_inserter.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
-
+#include <cartographer/io/proto_stream.h>
+#include "cartographer/mapping/proto/serialization.pb.h"
+#include <sensor_msgs/point_cloud2_iterator.h>
+#include <cartographer_ros/time_conversion.h>
+#include <cartographer/sensor/internal/voxel_filter.h>
 using namespace std;
 using namespace std::chrono;
+using namespace cartographer;
+using mapping::proto::SerializedData;
+static constexpr int kMappingStateSerializationFormatVersion = 2;
+static constexpr int kFormatVersionWithoutSubmapHistograms = 1;
+
 PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh_(n),
-  tf_buffer_{::ros::Duration(10.)}, tfListener_(tf_buffer_), map_path_(map_path)
+  tf_buffer_{::ros::Duration(30.)}, tfListener_(tf_buffer_), map_path_(map_path)
 {
   path_pub_ = nh_.advertise<nav_msgs::Path>("/pub_gps_path/gps_path",1);
   setParam();
@@ -33,6 +42,11 @@ PubGpsPath::PubGpsPath(const ros::NodeHandle& n, const std::string& map_path):nh
       "save_poses_with_time", &PubGpsPath::SaveDataSrv, this));
   gps_sub_ = nh_.subscribe<gps_common::GPSFix>("/jzhw/gps/fix", 3,
                                           &PubGpsPath::handleGps, this);
+//   lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/pointcloud_front", 3,
+//                                           &PubGpsPath::handlePointcloud, this);
+  odom_frame_ = "map";
+  base_frame_ = "base_link";
+  lidar_frame_ = "lidar_link";
 }
 
 PubGpsPath::~PubGpsPath()
@@ -50,9 +64,35 @@ void PubGpsPath::setParam()
   ::ros::param::get("/jzhw/calib/gps/default/px",gps2base_x);
   ::ros::param::get("/jzhw/calib/gps/default/py",gps2base_y);
   ::ros::param::get("/jzhw/calib/gps/default/yaw",gps2base_yaw);
-  
-  gps2base_.t = Eigen::Vector3d(gps2base_x,gps2base_y,0);
-  gps2base_.q = Eigen::Quaterniond(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
+  int k = 0;
+  ros::Rate rate(1);
+  while(1){
+    try{
+      auto gps2base_tf = tf_buffer_.lookupTransform("base_footprint", "gnss_link", ros::Time(0));
+      Eigen::Vector3d t(gps2base_tf.transform.translation.x, 
+                                    gps2base_tf.transform.translation.y,
+                                    gps2base_tf.transform.translation.z);
+      
+      Eigen::Quaterniond q(gps2base_tf.transform.rotation.w,
+                                      gps2base_tf.transform.rotation.x,
+                                      gps2base_tf.transform.rotation.y,
+                                      gps2base_tf.transform.rotation.z);
+      gps2base_ = Rigid3d(q,t);
+      break;
+    }
+    catch (const tf2::TransformException& ex){
+      if(k++ > 20){
+        LOG(WARNING) << "Can not get gps2base tf!";
+        Eigen::Vector3d t(gps2base_x,gps2base_y,0);
+        Eigen::Quaterniond q(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
+        gps2base_ = Rigid3d(q,t);
+        break;
+      }
+      rate.sleep();
+    }
+  }
+//   gps2base_.t = Eigen::Vector3d(gps2base_x,gps2base_y,0);
+//   gps2base_.q = Eigen::Quaterniond(cos(gps2base_yaw/2),0,0,sin(gps2base_yaw/2));
   std::cout <<"\033[36m gps2base_:" << gps2base_ <<"\033[0m" <<std::endl;
   
   //get fix_in_map_, ecef_in_map_
@@ -148,6 +188,8 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
     return;
   if(msg->status.status == 2)
     valid_msg_ = *msg;
+  else 
+    return;
   geometry_msgs::TransformStamped base2map;
   Rigid3d northGps2northBase;
   double dip = valid_msg_.dip * M_PI / 180 ;
@@ -163,7 +205,7 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
   Rigid3d base2fix =gps_to_base_init_* fix_pose1 * northGps2northBase.inverse();
 //   cout << "base2map_gps:" << base2map_gps <<endl;
   Rigid3d base_to_map_gps = fix_in_map_ * base2fix;
-
+cout << "base2map_gps:" << base_to_map_gps <<endl;
   double yaw_corrected = fix_frame_in_map_yaw_ - dip;
 //   
   Eigen::Quaterniond q_corrected = eul2quat(Eigen::Vector3d(yaw_corrected,0,0));
@@ -177,20 +219,23 @@ void PubGpsPath::handleGps(const gps_common::GPSFix::ConstPtr& msg)
     temp_pose.pose.position.y = base2map_gps.t(1);
     temp_pose.pose.position.z = base2map_gps.t(2);
     gps_path_.poses.push_back(temp_pose);
-    gps_path_.header.frame_id = "odom";
+    gps_path_.header.frame_id = odom_frame_;
 //     pathPub(valid_msg_);
     if(path_pub_.getNumSubscribers()){
       path_pub_.publish(gps_path_);
     }
   }
-  times_.push(valid_msg_.header.stamp);
-  poses_with_time_[times_.back()].push_back(base_to_map_gps);
-  
+  if((last_rtk_pose_.inverse() * base_to_map_gps).t.norm() < 1.0)
+  {
+    times_.push(valid_msg_.header.stamp);
+    poses_with_time_[times_.back()].push_back(base_to_map_gps);
+  }
+  last_rtk_pose_ = base_to_map_gps;
   while(times_.size() >0 ){
     geometry_msgs::TransformStamped base2odom;
     try
     { 
-      base2odom = tf_buffer_.lookupTransform("odom", "base_footprint", times_.front());
+      base2odom = tf_buffer_.lookupTransform(odom_frame_, base_frame_, times_.front());
       Eigen::Vector3d t(base2odom.transform.translation.x,
                         base2odom.transform.translation.y,
                         base2odom.transform.translation.z);
@@ -234,12 +279,77 @@ void PubGpsPath::pathPub(const gps_common::GPSFix& msg)
   temp_pose.pose.position.z = base2map.t(2);
 //   cout << base2map_gps <<endl;
   gps_mapping_path_.poses.push_back(temp_pose);
-  gps_mapping_path_.header.frame_id = "odom";
+  gps_mapping_path_.header.frame_id = odom_frame_;
   if(path_pub_.getNumSubscribers()){
     path_mapping_pub_.publish(gps_mapping_path_);
   }
+}
+
+void PubGpsPath::handlePointcloud(const sensor_msgs::PointCloud2::ConstPtr& msg)
+{
   
+  sensor::PointCloud cloud;
+  sensor_msgs::PointCloud2 origin_cloud = *msg;
+  sensor_msgs::PointCloud2Iterator<float> iter_x(origin_cloud, "x");
+  sensor_msgs::PointCloud2Iterator<float> iter_y(origin_cloud, "y");
+  sensor_msgs::PointCloud2Iterator<float> iter_z(origin_cloud, "z");
+  sensor_msgs::PointCloud2Iterator<float> iter_intensity(origin_cloud, "intensity");
+  int range_size = origin_cloud.width * origin_cloud.height;
+  for(int i = 0; i < range_size; i++)
+  {
+    Eigen::Vector3f point;
+    point(0) = *iter_x;
+    point(1) = *iter_y;
+    point(2) = *iter_z;
+    float intensity = *iter_intensity;
+    ++iter_x;
+    ++iter_y;
+    ++iter_z;
+    ++iter_intensity;
+    cloud.push_back({point,intensity});
+  }
+  cloud_times_.push(msg->header.stamp);
   
+  origin_cloud_with_time_[cloud_times_.back()] = sensor::VoxelFilter(0.1).Filter(cloud);
+  
+  while(cloud_times_.size() > 0)
+  {
+    geometry_msgs::TransformStamped lidar2odom;
+    try
+    { 
+      lidar2odom = tf_buffer_.lookupTransform(odom_frame_, lidar_frame_, cloud_times_.front());
+      Eigen::Vector3d t(lidar2odom.transform.translation.x,
+                        lidar2odom.transform.translation.y,
+                        lidar2odom.transform.translation.z);
+      Eigen::Quaterniond q(lidar2odom.transform.rotation.w, lidar2odom.transform.rotation.x,
+                        lidar2odom.transform.rotation.y, lidar2odom.transform.rotation.z);
+      Rigid3d lidar2odom_pose(q,t);
+      cout << lidar2odom_pose <<endl;
+      mapping::TrajectoryNode::Data data;
+      data.high_resolution_point_cloud.reserve(origin_cloud_with_time_[cloud_times_.front()].size());
+      data.time = cartographer_ros::FromRos(cloud_times_.front());
+      for(const auto& point : origin_cloud_with_time_[cloud_times_.front()])
+      {
+        sensor::RangefinderPoint p;
+        p.position = lidar2odom_pose * point.position;
+        p.intensity = point.intensity;
+        data.high_resolution_point_cloud.push_back(p);
+      }
+      cloud_with_time_[cloud_times_.front()] = data;
+      cout << "cloud_times: " << cloud_times_.front() <<endl;
+      cloud_times_.pop();
+    }
+    catch (tf2::TransformException& ex)
+    {
+      if((cloud_times_.back() - cloud_times_.front()).toSec() > 8.0)
+      {
+        cloud_with_time_.erase(cloud_with_time_.find(cloud_times_.front()));
+        cloud_times_.pop();
+      }
+      break;
+    }
+
+  }
 }
 
 bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
@@ -257,14 +367,29 @@ bool PubGpsPath::SaveDataSrv(std_srvs::Empty::Request& request, std_srvs::Empty:
     outFile <<endl;
   }
   outFile.close();
-
+  
+//   io::ProtoStreamWriter writer("/home/cyy/1.pbstream");
+//   mapping::proto::SerializationHeader header;
+//   header.set_format_version(kMappingStateSerializationFormatVersion);
+//   writer.WriteProto(header);
+//   int k = 0;
+//   for (const auto& node : cloud_with_time_) {
+//     SerializedData proto;
+//     auto* const node_proto = proto.mutable_node();
+//     node_proto->mutable_node_id()->set_trajectory_id(0);
+//     node_proto->mutable_node_id()->set_node_index(k++);
+//     *node_proto->mutable_node_data() = mapping::ToProto(node.second);
+//     writer.WriteProto(proto);
+//   }
+//   writer.Close();
+  cout <<"save done!" <<endl;
 }
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "pub_gps_path_node");
   ros::NodeHandle n;
-  string map_name = "/home/cyy/map/puyan_around";
+  string map_name = "/home/cyy/map/puyan104";
   PubGpsPath gps(n,map_name);
   ros::spin();
   return 1;
