@@ -46,6 +46,22 @@
 #include <cartographer/common/time.h>
 #include <cartographer/transform/rigid_transform.h>
 #include <ceres/ceres.h>
+#include <sensor_msgs/PointCloud.h>
+#include "opencv2/video/tracking.hpp"
+class Kalman{
+public:
+  Kalman();
+  double Filter(const double& det_time, const double& distance);
+  
+private:
+  cv::KalmanFilter kf_;
+  cv::Mat state_;
+  cv::Mat measurement_;
+  bool initialised_;
+  std::set<double> initial_distances_;
+  double last_distance_;
+};
+
 class uwbPoseOptimization
 {
 public:
@@ -57,6 +73,7 @@ private:
     const std::map<cartographer::common::Time, std::vector<Eigen::Vector4d>>& uwb_datas,
     const std::map<cartographer::common::Time, cartographer::transform::Rigid3d>& uwb_poses);
   void display(const ::ros::WallTimerEvent& unused_timer_event);
+  
   ros::NodeHandle nh_;
   sensor_msgs::PointCloud2 all_cloud_;
   std::map<cartographer::common::Time, std::vector<Eigen::Vector4d>> uwb_datas_;
@@ -65,6 +82,14 @@ private:
   ros::WallTimer wall_timer_;
   ros::Publisher cloud_pub_,uwb_pub_;
   
+  sensor_msgs::PointCloud2 cloud_msg_;
+  sensor_msgs::PointCloud uwb_msg_;
+  std::map<int, std::vector<double>> id_with_distances_;
+  std::map<int, Kalman> kalman_filters_;
+  std::map<int, cartographer::common::Time> last_times_;
+  std::map<int, cv::Mat> show_imgs_;
+  std::map<int, cartographer::common::Time> nearest_time_;
+  std::string map_path_;
 };
 
 class DistanceMarkJzCostFunction {
@@ -72,11 +97,13 @@ public:
 
   static ceres::CostFunction* CreateAutoDiffCostFunction(
       const double& observation, 
+      const double& weight,
+      const double& prior_z,
       const Eigen::Vector3d& sensor2bpre) {
     return new ceres::AutoDiffCostFunction<
-        DistanceMarkJzCostFunction, 1 /* residuals */,
+        DistanceMarkJzCostFunction, 2 /* residuals */,
         3 /* landmark translation variables */>(
-        new DistanceMarkJzCostFunction(observation, sensor2bpre));
+        new DistanceMarkJzCostFunction(observation, weight,prior_z, sensor2bpre));
   }
 
   template <typename T>
@@ -85,19 +112,27 @@ public:
                                                 T(global_pose_t_(1)),
                                                 T(global_pose_t_(2)));
     
-    e[0] = (global_t[0] - landmark_translation[0]) * (global_t[0] - landmark_translation[0]) + 
+    const T error =( (global_t[0] - landmark_translation[0]) * (global_t[0] - landmark_translation[0]) + 
                     (global_t[1] - landmark_translation[1]) * (global_t[1] - landmark_translation[1]) + 
-                    (global_t[2] - landmark_translation[2]) * (global_t[2] - landmark_translation[2]) - 
-                    T(sensor2mark_distance_);//,
+                    (global_t[2] - landmark_translation[2]) * (global_t[2] - landmark_translation[2]) - T(sensor2mark_distance_));//,
+                    
+    const T error2 = (landmark_translation[2] - T(prior_z_)) * (landmark_translation[2] - T(prior_z_));
+    e[0] = error * weight_;
+    e[1] = error2 * (weight_*0.5);
     return true;
   }
 
 private:
-  DistanceMarkJzCostFunction(const double observation,
+  DistanceMarkJzCostFunction(const double observation,const double& weight, const double& prior_z,
                          const Eigen::Vector3d& global_pose_t)
       : sensor2mark_distance_(observation * observation),
+        weight_(weight),prior_z_(prior_z),
         global_pose_t_(global_pose_t){}
   const double sensor2mark_distance_;
+  const double weight_;
+  const double prior_z_;
   const Eigen::Vector3d global_pose_t_;
+  
+  
 };
 #endif // UWBPOSEOPTIMIZATION_H

@@ -39,7 +39,7 @@ PclProject::PclProject()
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
 
   //*打开点云文件
-  if (pcl::io::loadPCDFile<pcl::PointXYZI>("/home/cyy/map/pcd3d/pcd_frames/0/submap.pcd", *cloud) == -1) {
+  if (pcl::io::loadPCDFile<pcl::PointXYZI>("/home/cyy/map/pcd3d/map.pcd", *cloud) == -1) {
       PCL_ERROR("Couldn't read file rabbit.pcd\n");
   }
   pcl::visualization::CloudViewer viewer("cloud viewer");
@@ -64,8 +64,8 @@ PclProject::PclProject()
   transformed_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
   if(1)
   {
-    read_pcd("/home/cyy/submap_37.pcd",target_cloud_);
-    read_pcd("/home/cyy/node_1820.pcd",src_cloud_);
+    read_pcd("/home/cyy/submap_0.pcd",target_cloud_);
+    read_pcd("/home/cyy/node_100.pcd",src_cloud_);
     cout << "submap points size: " << target_cloud_->size() <<endl;
     
     Rigid3d gravity({0,0,0},gravity_alignment);
@@ -75,12 +75,12 @@ PclProject::PclProject()
     cout << global_submap_pose <<endl;
     cout << global_node_pose <<endl;
     cout << node2submap_pose <<endl;
-    PointToPlaneIcpMatcher(src_cloud_,target_cloud_);
-    Eigen::Matrix4d trans;
-    trans << 0-0.991356, 0-0.126272, -0.0356134, 0001.62393,
-      0000.12381, 00-0.99021 ,00.0644582, 00-2.44006,
-      0-0.043404, 00.0594917, 000.997285, 00.0712701,
-      0000000000, 0000000000, 0000000000 ,0000000001;
+    
+    Eigen::Matrix4d trans = PointToPlaneIcpMatcher(src_cloud_,target_cloud_);
+//     trans << 0-0.991356, 0-0.126272, -0.0356134, 0001.62393,
+//       0000.12381, 00-0.99021 ,00.0644582, 00-2.44006,
+//       0-0.043404, 00.0594917, 000.997285, 00.0712701,
+//       0000000000, 0000000000, 0000000000 ,0000000001;
     for(auto p: src_cloud_->points)
     {
       Eigen::Vector4d p1(p.x,p.y,p.z,1);
@@ -677,6 +677,12 @@ Eigen::Matrix4d PclProject::PointToPlaneIcpMatcher (pcl::PointCloud<pcl::PointXY
   pcl::PointCloud<pcl::PointNormal>::Ptr cloud_model_normals(new pcl::PointCloud<pcl::PointNormal>);
   pcl::concatenateFields(*cloud2, *normals1, *cloud_model_normals);
 
+  
+  pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointNormal, pcl::PointNormal> transform_estimator;
+  
+  Eigen::Matrix4f estimated_transform;
+  transform_estimator.estimateRigidTransformation (*src, *cloud_model_normals, estimated_transform);
+  return estimated_transform.cast<double>();
   pcl::IterativeClosestPoint<pcl::PointNormal, pcl::PointNormal> icp;
   typedef pcl::registration::TransformationEstimationPointToPlane<pcl::PointNormal, pcl::PointNormal> PointToPlane;
 //   typedef pcl::registration::TransformationEstimationSymmetricPointToPlaneLLS<pcl::PointNormal, pcl::PointNormal> SymmPointToPlane;
