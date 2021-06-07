@@ -118,6 +118,9 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 add_executable(pcl_test src/pcl_project.cpp)
 target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(uwb_filter src/uwb_filter.cpp)
+target_link_libraries(uwb_filter ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
 add_executable(uwb_pose_optimization src/uwb_pose_optimization.cpp)
 target_link_libraries(uwb_pose_optimization cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
@@ -200,7 +203,7 @@ target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES
 
 # add_subdirectory(launch)
 
-install(TARGETS  pcl_test read_json uwb_pose_optimization
+install(TARGETS  pcl_test read_json uwb_pose_optimization uwb_filter
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

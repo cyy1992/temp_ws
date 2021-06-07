@@ -43,10 +43,12 @@ double Kalman::Filter(const double& det_time, const double& distance)
 {
   if(!initialised_)
   {
+    auto min_dis = std::min_element(initial_distances_.begin(), initial_distances_.end());
+    auto max_dis = std::max_element(initial_distances_.begin(), initial_distances_.end());
     if(!initial_distances_.empty() && initial_distances_.size() > 5)
     {
-      if(fabs(distance - *(initial_distances_.begin())) < 1.0 && 
-        fabs(distance - *(initial_distances_.rbegin())) < 1.0)
+      if(fabs(distance - *min_dis) < 1.0 && 
+        fabs(distance - *max_dis) < 1.0)
       {
         initialised_ = true;
         state_.at<float>(0) = distance;
@@ -58,11 +60,11 @@ double Kalman::Filter(const double& det_time, const double& distance)
       else
       {
         initial_distances_.erase(initial_distances_.begin());
-        initial_distances_.insert(distance);
+        initial_distances_.push_back(distance);
       }
     }
     else
-      initial_distances_.insert(distance);
+      initial_distances_.push_back(distance);
     return -1.0;
   }
   
@@ -130,7 +132,7 @@ void uwbPoseOptimization::loadCloud(const std::string& filename)
       Eigen::Vector4d data;
       fi >> data(0) >> data(1) >> data(2)>>data(3);
       uwb_datas_[common::FromUniversal(time)].push_back(data);
-      id_with_distances_[static_cast<int>(data(0))].push_back(data(1));
+      id_with_distances_[static_cast<int>(data(0))].push_back({data(1), data(2),data(3)});
     }
   }
   fi.close();
@@ -157,7 +159,7 @@ void uwbPoseOptimization::loadCloud(const std::string& filename)
     ofstream outFile1;
     outFile1.open("/home/cyy/distances_"+to_string(it.first)+ ".txt", std::ios::out);
     for(auto it2:it.second)
-      outFile1 << it2 << endl;
+      outFile1 << it2(0) << " " << it2(1) <<" " << it2(2)<< endl;
     outFile1.close();
   }
 //   cout << uwb_datas_.size() << ", " <<  uwb_poses_.size() <<endl;

@@ -58,7 +58,7 @@ private:
   cv::Mat state_;
   cv::Mat measurement_;
   bool initialised_;
-  std::set<double> initial_distances_;
+  std::vector<double> initial_distances_;
   double last_distance_;
 };
 
@@ -84,7 +84,7 @@ private:
   
   sensor_msgs::PointCloud2 cloud_msg_;
   sensor_msgs::PointCloud uwb_msg_;
-  std::map<int, std::vector<double>> id_with_distances_;
+  std::map<int, std::vector<Eigen::Vector3d>> id_with_distances_;
   std::map<int, Kalman> kalman_filters_;
   std::map<int, cartographer::common::Time> last_times_;
   std::map<int, cv::Mat> show_imgs_;
