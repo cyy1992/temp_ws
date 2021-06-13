@@ -171,8 +171,8 @@ target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES
 # add_executable(depth_color_registration_node src/depth_color_registration.cpp src/depth2colorAlign.cpp)
 # target_link_libraries(depth_color_registration_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # 
-# add_executable(point_cloud_trans src/point_cloud_trans.cpp)
-# target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
+add_executable(point_cloud_trans src/point_cloud_trans.cpp)
+target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 # 
 # add_executable(crop_points src/crop_points.cpp)
 # target_link_libraries(crop_points ${catkin_LIBRARIES})
@@ -203,7 +203,7 @@ target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES
 
 # add_subdirectory(launch)
 
-install(TARGETS  pcl_test read_json uwb_pose_optimization uwb_filter
+install(TARGETS  pcl_test read_json uwb_pose_optimization uwb_filter point_cloud_trans
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
