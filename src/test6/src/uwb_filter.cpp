@@ -22,15 +22,19 @@ using namespace std;
 
 Kalman::Kalman()
 {
-  kf_ = KalmanFilter(2,1,0);
-  state_ = Mat(2, 1, CV_32F);
-  measurement_ = Mat::zeros(1, 1, CV_32F);
-  setIdentity(kf_.measurementMatrix);
-  setIdentity(kf_.processNoiseCov, Scalar::all(1e-5));
-  setIdentity(kf_.measurementNoiseCov, Scalar::all(0.1));
-  setIdentity(kf_.errorCovPost, Scalar::all(1.0));
   
+  H << 1.0,0.0;
+  A << 1.0,0.0,0.0,1.0;
+  
+  P_k << 1.0,0.0,0.0,1.0;
+  Q_k << 1.0,0.0,0.0,1.0;
+  Q_k = 1e-1 * Q_k;
+  R_k = 10.0;
+  x_k(0) = 0.0;
+  x_k(1) = 0.0;
+
   initialised_ = false;
+  unpub_cnt_ = 0;
   
 }
 double Kalman::Var()
@@ -41,16 +45,10 @@ double Kalman::Var()
     sum += it;
   }
   double mean = sum/distance_queue_.size();
-//   double var_sum = 0;
-//   
-//   for(auto it:distance_queue_)
-//   {
-//     var_sum += (it - mean) * (it - mean);
-//   }
-//   double var = var_sum/distance_queue_.size();
   double var = (distance_queue_.back() - mean) * (distance_queue_.back() - mean);
   return var;
 }
+
 
 double Kalman::Filter(const double& det_time, const double& distance)
 {
@@ -66,10 +64,12 @@ double Kalman::Filter(const double& det_time, const double& distance)
         fabs(distance - *max_dis) < 1.0)
       {
         initialised_ = true;
-        state_.at<float>(0) = distance;
-        state_.at<float>(1) = 0.0;
-        kf_.statePost = state_;
+//         state_.at<float>(0) = distance;
+//         state_.at<float>(1) = 0;
+//         kf_.statePost = state_;
         last_distance_ = distance;
+        x_k(0) = distance;
+        unpub_cnt_ = 10;
         return distance;
       }
       else
@@ -82,29 +82,40 @@ double Kalman::Filter(const double& det_time, const double& distance)
       initial_distances_.push_back(distance);
     return -1.0;
   }
-//   cout << "1111" <<endl;
+/*
   distance_queue_.push_back(distance);
   if(distance_queue_.size() > 200)
     distance_queue_.erase(distance_queue_.begin());
   double var = Var();
-  
-//   cout << var <<endl;
-  if(var > 1.0)
+
+  if(var > 2.0){
+    cout << var <<endl;
     return -2;
-//   if( fabs((last_distance_ - distance)/det_time) > 5.0 || fabs(last_distance_ - distance) > 3.5)
-//     return -1;
+  }*/
+
   assert(det_time > 0);
-  kf_.transitionMatrix = (Mat_<float>(2, 2) << 1.0, det_time, 0.0, 1.0);
-  measurement_ = distance;
-  Mat prediction = kf_.predict();
-  kf_.correct(measurement_);
-//   if(fabs(prediction.at<float>(0) - distance)/det_time > 10.0)
-//   {
-//     return -1;
-//   }
-//   ;
-  last_distance_ = distance;
-  return static_cast<double>(kf_.statePost.at<float>(0));
+  A(0,1) = det_time;
+  Eigen::Vector2d x_ = A * x_k;
+  Eigen::Matrix2d P_ = A * P_k * A.transpose() + Q_k;
+  float tmp = fabs(x_(0) - distance);
+  if(tmp > 0.1 * P_.trace())
+  {
+    x_k = x_;
+    P_k = P_;
+    unpub_cnt_ = 0;
+    return -2;
+  }
+  else
+  {
+    K = P_*H * (1.0 / (P_(0,0) + R_k));
+    x_k = x_ + K *(distance -x_(0) );
+    Eigen::Matrix2d k_h ;
+    k_h << K(0),0.,K(1),0.;
+    P_k = (Eigen::Matrix2d::Identity() - k_h) * P_;
+  }
+  if(unpub_cnt_++ < 10)
+    return -2;
+  return x_k(0);
 }
 
 UwbFilter::UwbFilter(const ros::NodeHandle& n):nh_(n)
@@ -129,8 +140,7 @@ void UwbFilter::HandleUwbMsg(const nlink_parser::LinktrackNodeframe2::ConstPtr& 
   for(nlink_parser::LinktrackNode2 node: msg->nodes)
   {
     int id = node.id;
-    int distance = node.dis;
-    
+    float distance = node.dis;
     if(unuse_distance_count_.find(id) == unuse_distance_count_.end())
     {
       unuse_distance_count_[id] = 0;
@@ -138,33 +148,32 @@ void UwbFilter::HandleUwbMsg(const nlink_parser::LinktrackNodeframe2::ConstPtr& 
       origin_path_pub_[id] = nh_.advertise<geometry_msgs::Point>("origin_path_" + to_string(id), 1);
       filtered_path_pub_[id] = nh_.advertise<geometry_msgs::Point>("filtered_path_" + to_string(id), 1);
       last_times_[id] = cur_time;
+      continue;
     }
     
     // 1. distance filter
-    if(distance > max_distance_)
-    {
-      unuse_distance_count_[id] +=1;
-      continue ;
-    }
-    else if(unuse_distance_count_[id] > 200)
-    {
-      kalman_filters_[id].reset(new Kalman);
-      unuse_distance_count_[id] = 0;
-    }
-//     
-//     
+//     if(distance > max_distance_)
+//     {
+//       unuse_distance_count_[id] +=1;
+//       continue ;
+//     }
+//     else if(unuse_distance_count_[id] > 200)
+//     {
+//       kalman_filters_[id].reset(new Kalman);
+//       unuse_distance_count_[id] = 0;
+//     }
+    
+    
     // 2. kalman filter
     double det_time = (cur_time - last_times_[id]).toSec();
-//     cout << id <<", " << det_time << ", " <<distance<<endl;
     double filtered_data = kalman_filters_[id]->Filter(det_time, distance);
-//     cout << filtered_data <<endl;
-    
     
     if(filtered_data >= 0.)
     {
       last_times_[id] = cur_time;
+      
       cartographer_ros_msgs::LinktrackNode2 node2;
-      node2.dis = filtered_data;
+      node2.dis = static_cast<float>(filtered_data);
       node2.id = id;
       node2.fp_rssi = node.fp_rssi;
       node2.rx_rssi = node.rx_rssi;
@@ -180,8 +189,7 @@ void UwbFilter::HandleUwbMsg(const nlink_parser::LinktrackNodeframe2::ConstPtr& 
     }
     else if(filtered_data == -2)
     {
-      unuse_distance_count_[id] +=1;
-      continue;
+//       unuse_distance_count_[id] +=1;
     }
   }
   if(filtered_uwb_msg.nodes.size() > 0)

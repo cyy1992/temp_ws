@@ -30,6 +30,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <nav_msgs/Path.h>
+#include <Eigen/Eigen>
 class Kalman{
 public:
   Kalman();
@@ -44,6 +45,17 @@ private:
   std::vector<double> initial_distances_;
   double last_distance_;
   std::vector<double> distance_queue_;
+  
+  Eigen::Vector2d x_k;
+  Eigen::Vector2d z_k;
+  Eigen::Matrix2d A;
+  Eigen::Vector2d H;
+
+  Eigen::Matrix2d P_k;
+  Eigen::Matrix2d Q_k;
+  double R_k;
+  Eigen::Vector2d K;
+  int unpub_cnt_;
 };
 
 class UwbFilter
