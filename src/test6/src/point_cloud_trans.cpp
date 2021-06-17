@@ -22,7 +22,8 @@ using namespace std;
 PointcloudTrans::PointcloudTrans(const ros::NodeHandle& n):nh_(n),tfBuffer_(ros::Duration(20.)),tfListener_(tfBuffer_)
 {
   cout << "start ... " << endl;
-  cloud1_sub_ = nh_.subscribe("/pointcloud_back",10, &PointcloudTrans::HandleCloudFront,this);
+  
+  cloud1_sub_ = nh_.subscribe("/pointcloud_front",10, &PointcloudTrans::HandleCloudFront,this);
 //   cloud2_sub_ = nh_.subscribe("/pointcloud_back",10, &PointcloudTrans::HandleCloudBack,this);
   cloud1_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/pointcloud_front1",10);
   cloud2_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/pointcloud_back1",10);
@@ -72,19 +73,29 @@ void PointcloudTrans::calibRollPitchZ(const geometry_msgs::TransformStamped& pri
         sensor_msgs::PointCloud2 temp_cloud;
         tf2::doTransform(cloud, temp_cloud, transform);
         
+        sensor_msgs::PointCloud2Iterator<float> iter_x0(temp_cloud, "x");
+        sensor_msgs::PointCloud2Iterator<float> iter_y0(temp_cloud, "y");
         sensor_msgs::PointCloud2Iterator<float> iter_z0(temp_cloud, "z");
         int points_sum = 0;
         for(int ii = 0; ii < range_size; ii++)
         {
-          if(*iter_z0 > -0.015 && *iter_z0 < 0.015 )
-            points_sum++;
+          float x,y,z;
+          x = *iter_x0;y = *iter_y0;
+          z = *iter_z0;
+          ++iter_x0;
+          ++iter_y0;
           ++iter_z0;
+          if(x*x + y*y + z*z > 125)
+            continue;
+          if(z > -0.02 && z < 0.02 )
+            points_sum++;
+          
         }
         if(points_sum > max_points_sum){
           max_points_sum = points_sum;
           result_transform = transform;
           cout << "max points sum update: " << max_points_sum <<", " << i <<" " << j <<" " << k<<endl;
-          cout << z << ", " << roll << ", " << pitch <<endl;
+          cout <<"z, pitch, roll: " <<  z << ", " << pitch << " " << roll <<endl;
         }
       }
     }

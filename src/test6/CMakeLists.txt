@@ -115,8 +115,11 @@ ${CARTOGRAPHER_CMAKE_DIR}/../../../lib/
 # add_executable(merge_submap src/merge_submap_from_nodes.cpp)
 # target_link_libraries(merge_submap cartographer_ros cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(pcl_test src/pcl_project.cpp)
-target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(pcl_test src/pcl_project.cpp)
+# target_link_libraries(pcl_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+# 
+# add_executable(uwb_pose_optimization src/uwb_pose_optimization.cpp)
+# target_link_libraries(uwb_pose_optimization cartographer ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(uwb_filter src/uwb_filter.cpp)
 target_link_libraries(uwb_filter ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
@@ -155,8 +158,8 @@ target_link_libraries(uwb_pose_optimization cartographer ${catkin_LIBRARIES} ${O
 # add_executable(tf_to_path src/tf_to_path.cpp)
 # target_link_libraries(tf_to_path  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
-add_executable(read_json src/read_json.cpp)
-target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# add_executable(read_json src/read_json.cpp)
+# target_link_libraries(read_json -ljsoncpp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(read_yaml src/read_yaml.cpp)
 # target_link_libraries(read_yaml ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${YAML_CPP_LIBRARIES})
 # add_executable(read_json src/read_json.cpp)
@@ -196,6 +199,8 @@ target_link_libraries(point_cloud_trans ${catkin_LIBRARIES})
 
 # add_executable(line_matcher src/line_matcher.cpp)
 # target_link_libraries(line_matcher  -lglog ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+add_executable(images_saver src/images_saver.cpp)
+target_link_libraries(images_saver  -lglog ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
 
 # add_executable(laser_matcher src/laser_matcher.cpp)
