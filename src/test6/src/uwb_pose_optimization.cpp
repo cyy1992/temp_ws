@@ -28,33 +28,54 @@ using namespace cartographer;
 using namespace cv;
 Kalman::Kalman()
 {
-  kf_ = KalmanFilter(2,1,0);
-  state_ = Mat(2, 1, CV_32F);
-  measurement_ = Mat::zeros(1, 1, CV_32F);
-  setIdentity(kf_.measurementMatrix);
-  setIdentity(kf_.processNoiseCov, Scalar::all(10));
-  setIdentity(kf_.measurementNoiseCov, Scalar::all(1e2));
-  setIdentity(kf_.errorCovPost, Scalar::all(1));
   
+  H << 1.0,0.0;
+  A << 1.0,0.0,0.0,1.0;
+  
+  P_k << 1.0,0.0,0.0,1.0;
+  Q_k << 1.0,0.0,0.0,1.0;
+  Q_k = 1e-1 * Q_k;
+  R_k = 10.0;
+  x_k(0) = 0.0;
+  x_k(1) = 0.0;
+
   initialised_ = false;
+  unpub_cnt_ = 0;
+  
 }
+double Kalman::Var()
+{
+  double sum = 0;
+  for(auto it:distance_queue_)
+  {
+    sum += it;
+  }
+  double mean = sum/distance_queue_.size();
+  double var = (distance_queue_.back() - mean) * (distance_queue_.back() - mean);
+  return var;
+}
+
 
 double Kalman::Filter(const double& det_time, const double& distance)
 {
   if(!initialised_)
   {
-    auto min_dis = std::min_element(initial_distances_.begin(), initial_distances_.end());
-    auto max_dis = std::max_element(initial_distances_.begin(), initial_distances_.end());
+    
     if(!initial_distances_.empty() && initial_distances_.size() > 5)
     {
+      cout << distance <<", " << *(initial_distances_.begin()) <<", "<< *(initial_distances_.rbegin()) <<endl;
+      auto min_dis = std::min_element(initial_distances_.begin(), initial_distances_.end());
+      auto max_dis = std::max_element(initial_distances_.begin(), initial_distances_.end());
       if(fabs(distance - *min_dis) < 1.0 && 
         fabs(distance - *max_dis) < 1.0)
       {
         initialised_ = true;
-        state_.at<float>(0) = distance;
-        state_.at<float>(1) = 0;
-        kf_.statePost = state_;
+//         state_.at<float>(0) = distance;
+//         state_.at<float>(1) = 0;
+//         kf_.statePost = state_;
         last_distance_ = distance;
+        x_k(0) = distance;
+        unpub_cnt_ = 10;
         return distance;
       }
       else
@@ -67,19 +88,41 @@ double Kalman::Filter(const double& det_time, const double& distance)
       initial_distances_.push_back(distance);
     return -1.0;
   }
-  
-  if( fabs((last_distance_ - distance)/det_time) > 5.0 || fabs(last_distance_ - distance) > 3.5)
-    return -1;
-  kf_.transitionMatrix = (Mat_<float>(2, 2) << 1, det_time, 0, 1);
-  measurement_ = distance;
-  Mat prediction = kf_.predict();
-  
-  kf_.correct(measurement_);
-  last_distance_ = distance;
-  return (double)(kf_.statePost.at<float>(0));
+/*
+  distance_queue_.push_back(distance);
+  if(distance_queue_.size() > 200)
+    distance_queue_.erase(distance_queue_.begin());
+  double var = Var();
 
+  if(var > 2.0){
+    cout << var <<endl;
+    return -2;
+  }*/
+
+  assert(det_time > 0);
+  A(0,1) = det_time;
+  Eigen::Vector2d x_ = A * x_k;
+  Eigen::Matrix2d P_ = A * P_k * A.transpose() + Q_k;
+  float tmp = fabs(x_(0) - distance);
+  if(tmp > 0.1 * P_.trace())
+  {
+    x_k = x_;
+    P_k = P_;
+    unpub_cnt_ = 0;
+    return -2;
+  }
+  else
+  {
+    K = P_*H * (1.0 / (P_(0,0) + R_k));
+    x_k = x_ + K *(distance -x_(0) );
+    Eigen::Matrix2d k_h ;
+    k_h << K(0),0.,K(1),0.;
+    P_k = (Eigen::Matrix2d::Identity() - k_h) * P_;
+  }
+  if(unpub_cnt_++ < 10)
+    return -2;
+  return x_k(0);
 }
-
 
 uwbPoseOptimization::uwbPoseOptimization(const std::string& path)
 {
@@ -181,7 +224,7 @@ void uwbPoseOptimization::loadCloud(const std::string& filename)
       if(last_times_.find(cur_id) != last_times_.end())
         det_time = common::ToSeconds(it->first - last_times_[cur_id]);
       
-      if(distance > 50)
+      if(distance > 30)
       {
         it2 = it->second.erase(it2);
         continue;
@@ -190,7 +233,8 @@ void uwbPoseOptimization::loadCloud(const std::string& filename)
         it2 = it->second.erase(it2);
         continue;
       }
-      double filter_distance = kalman_filters_[cur_id].Filter(det_time,distance);
+//       double filter_distance = kalman_filters_[cur_id].Filter(det_time,distance);
+      double filter_distance = distance;
       if(filter_distance == -1)
         it2 = it->second.erase(it2);
       else
@@ -259,10 +303,10 @@ void uwbPoseOptimization::loadCloud(const std::string& filename)
   }
   for(auto it: origin_points)
   {
-    for(auto it2:it.second)
-    {
-      circle(show_imgs_[it.first], it2, 1,Scalar(255,255,0));
-    }
+//     for(auto it2:it.second)
+//     {
+//       circle(show_imgs_[it.first], it2, 1,Scalar(255,255,0));
+//     }
     imshow("img"+ to_string(it.first), show_imgs_[it.first]);
     
   }
@@ -291,7 +335,7 @@ void uwbPoseOptimization::optimizePoses(
         ids[id] = t;
         cout << "id: " << id<< ", " << t.transpose()<<endl;
       }
-      double weight = 10.0 ;
+      double weight = 1.0 ;
       double z = ids[id](2);
       problem.AddResidualBlock(
           DistanceMarkJzCostFunction::CreateAutoDiffCostFunction(node(1), weight, z, global_pose.translation()),

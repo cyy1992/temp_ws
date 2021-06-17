@@ -54,12 +54,25 @@ public:
   double Filter(const double& det_time, const double& distance);
   
 private:
+  double Var();
   cv::KalmanFilter kf_;
   cv::Mat state_;
   cv::Mat measurement_;
   bool initialised_;
   std::vector<double> initial_distances_;
   double last_distance_;
+  std::vector<double> distance_queue_;
+  
+  Eigen::Vector2d x_k;
+  Eigen::Vector2d z_k;
+  Eigen::Matrix2d A;
+  Eigen::Vector2d H;
+
+  Eigen::Matrix2d P_k;
+  Eigen::Matrix2d Q_k;
+  double R_k;
+  Eigen::Vector2d K;
+  int unpub_cnt_;
 };
 
 class uwbPoseOptimization
@@ -117,8 +130,8 @@ public:
                     (global_t[2] - landmark_translation[2]) * (global_t[2] - landmark_translation[2]) - T(sensor2mark_distance_));//,
                     
     const T error2 = (landmark_translation[2] - T(prior_z_)) * (landmark_translation[2] - T(prior_z_));
-    e[0] = error * weight_;
-    e[1] = error2 * (weight_*0.5);
+    e[0] = error;
+    e[1] = error2 * (weight_);
     return true;
   }
 
